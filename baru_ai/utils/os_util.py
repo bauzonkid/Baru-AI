@@ -13,7 +13,7 @@
 """
 OS utilities for file and path management
 
-Provides utilities for managing paths and files in Pixelle-Video.
+Provides utilities for managing paths and files in Baru-AI.
 Inspired by Pixelle-MCP's os_util.py.
 """
 
@@ -26,7 +26,7 @@ from typing import Optional, Tuple, Literal
 
 def get_baru_ai_root_path() -> str:
     """
-    Get Pixelle-Video root path
+    Get Baru-AI root path
     
     Uses baru_ai_ROOT environment variable to determine project root.
     This ensures reliable path resolution in both development and packaged environments.
@@ -46,7 +46,7 @@ def get_baru_ai_root_path() -> str:
 
 def ensure_baru_ai_root_path() -> str:
     """
-    Ensure Pixelle-Video root path exists and return the path
+    Ensure Baru-AI root path exists and return the path
     
     Returns:
         Root path as string
@@ -61,7 +61,7 @@ def ensure_baru_ai_root_path() -> str:
 
 def get_root_path(*paths: str) -> str:
     """
-    Get path relative to Pixelle-Video root path
+    Get path relative to Baru-AI root path
     
     Args:
         *paths: Path components to join
@@ -81,7 +81,7 @@ def get_root_path(*paths: str) -> str:
 
 def get_temp_path(*paths: str) -> str:
     """
-    Get path relative to Pixelle-Video temp folder
+    Get path relative to Baru-AI temp folder
     
     Ensures temp directory exists before returning path.
     
@@ -107,7 +107,7 @@ def get_temp_path(*paths: str) -> str:
 
 def get_data_path(*paths: str) -> str:
     """
-    Get path relative to Pixelle-Video data folder
+    Get path relative to Baru-AI data folder
 
     Ensures data directory exists before returning path.
     
@@ -133,7 +133,7 @@ def get_data_path(*paths: str) -> str:
 
 def get_output_path(*paths: str) -> str:
     """
-    Get path relative to Pixelle-Video output folder
+    Get path relative to Baru-AI output folder
 
     Ensures output directory exists before returning path.
     

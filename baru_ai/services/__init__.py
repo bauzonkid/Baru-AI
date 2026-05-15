@@ -11,7 +11,7 @@
 # limitations under the License.
 
 """
-Pixelle-Video Services
+Baru-AI Services
 
 Core services providing atomic capabilities.
 

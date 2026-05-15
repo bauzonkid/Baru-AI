@@ -134,7 +134,7 @@ class TemplateConfig(BaseModel):
 
 
 class PixelleVideoConfig(BaseModel):
-    """Pixelle-Video main configuration"""
+    """Baru-AI main configuration"""
     project_name: str = Field(default="Baru-AI", description="Project name")
     llm: LLMConfig = Field(default_factory=LLMConfig)
     comfyui: ComfyUIConfig = Field(default_factory=ComfyUIConfig)

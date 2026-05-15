@@ -11,7 +11,7 @@
 # limitations under the License.
 
 """
-Pixelle-Video Utilities
+Baru-AI Utilities
 
 Utility functions and helpers.
 """

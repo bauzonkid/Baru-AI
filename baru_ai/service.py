@@ -11,7 +11,7 @@
 # limitations under the License.
 
 """
-Pixelle-Video Core - Service Layer
+Baru-AI Core - Service Layer
 
 Provides unified access to all capabilities (LLM, TTS, Image, etc.)
 """
@@ -40,7 +40,7 @@ from baru_ai.pipelines.asset_based import AssetBasedPipeline
 
 class PixelleVideoCore:
     """
-    Pixelle-Video Core - Service Layer
+    Baru-AI Core - Service Layer
     
     Provides unified access to all capabilities.
     
@@ -73,7 +73,7 @@ class PixelleVideoCore:
     
     def __init__(self, config_path: str = "config.yaml"):
         """
-        Initialize Pixelle-Video Core
+        Initialize Baru-AI Core
         
         Args:
             config_path: Path to configuration file
@@ -187,10 +187,10 @@ class PixelleVideoCore:
             await baru_ai.initialize()
         """
         if self._initialized:
-            logger.warning("Pixelle-Video already initialized")
+            logger.warning("Baru-AI already initialized")
             return
         
-        logger.info("ðŸš€ Initializing Pixelle-Video...")
+        logger.info("ðŸš€ Initializing Baru-AI...")
         
         # 1. Initialize core services (ComfyKit will be lazy-loaded later)
         # Initialize services
@@ -217,7 +217,7 @@ class PixelleVideoCore:
         self.generate_video = self._create_generate_video_wrapper()
         
         self._initialized = True
-        logger.info("âœ… Pixelle-Video initialized successfully\n")
+        logger.info("âœ… Baru-AI initialized successfully\n")
     
     async def cleanup(self):
         """
@@ -297,7 +297,7 @@ class PixelleVideoCore:
     @property
     def project_name(self) -> str:
         """Get project name from config"""
-        return self.config.get("project_name", "Pixelle-Video")
+        return self.config.get("project_name", "Baru-AI")
     
     def __repr__(self) -> str:
         """String representation"""

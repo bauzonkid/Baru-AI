@@ -11,7 +11,7 @@
 # limitations under the License.
 
 """
-Pixelle-Video Pipelines
+Baru-AI Pipelines
 
 Video generation pipelines with different strategies and workflows.
 Each pipeline implements a specific video generation approach.
