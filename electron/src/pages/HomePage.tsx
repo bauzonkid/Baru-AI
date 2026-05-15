@@ -550,6 +550,23 @@ function ProgressInline({
   );
 }
 
+// Force-download via blob — server sends Content-Disposition: inline
+// for browser preview, which makes a plain <a download> navigate away
+// instead of saving. Fetch → blob → anchor click bypasses the header.
+async function downloadVideoBlob(url: string, filename: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Tải video thất bại (HTTP ${res.status})`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+}
+
 function VideoDonePage({
   videoUrl,
   onReset,
@@ -557,10 +574,20 @@ function VideoDonePage({
   videoUrl: string;
   onReset: () => void;
 }) {
+  const filename =
+    videoUrl.split("/").filter(Boolean).slice(-2).join("_") || "video.mp4";
+
+  async function onDownload() {
+    try {
+      await downloadVideoBlob(videoUrl, filename);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8">
-      {/* Top action bar — back button always visible, doesn't scroll off
-          when the player + caption push down. */}
+      {/* Top action bar — back button always visible. */}
       <header className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -576,8 +603,6 @@ function VideoDonePage({
         </div>
       </header>
 
-      {/* Player — vertical 9:16 templates fit a max-h container nicely
-          without overflowing on tall screens. */}
       <div className="rounded-baru-lg border border-baru-violet/30 bg-baru-panel p-4">
         <video
           controls
@@ -587,24 +612,14 @@ function VideoDonePage({
         />
       </div>
 
-      {/* Action row — download + open in new tab. Bottom-of-page rather
-          than overlaid so the player gets the full real estate. */}
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <a
-          href={videoUrl}
-          download
+        <button
+          type="button"
+          onClick={onDownload}
           className="rounded-baru-md bg-baru-violet px-4 py-2 text-sm font-medium text-white shadow-violet-glow transition hover:bg-baru-violet-hover"
         >
           ⬇  Tải xuống
-        </a>
-        <a
-          href={videoUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-4 py-2 text-sm text-baru-dim transition hover:border-baru-violet/40 hover:text-baru-fg"
-        >
-          Mở trong tab mới
-        </a>
+        </button>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {
 } from "@/lib/api";
 
 interface Props {
-  onPlay: (videoUrl: string) => void;
+  onPlay?: (videoUrl: string) => void;
 }
 
 type LoadState =
@@ -14,8 +14,29 @@ type LoadState =
   | { kind: "loaded"; items: HistoryItem[]; total: number }
   | { kind: "error"; message: string };
 
+/** Force-download via blob — backend serves Content-Disposition: inline
+ *  for browser preview, which makes a plain ``<a download>`` navigate
+ *  away from the Workspace instead of saving. Fetching as blob, then
+ *  triggering an anchor click on a blob URL bypasses the header and
+ *  works the same in browser + Electron renderer. */
+async function downloadVideoBlob(url: string, filename: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Tải video thất bại (HTTP ${res.status})`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Defer revoke so the browser has time to start the save.
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+}
+
 export function WorkspacePage({ onPlay }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   async function reload() {
     setState({ kind: "loading" });
@@ -106,10 +127,92 @@ export function WorkspacePage({ onPlay }: Props) {
           <HistoryCard
             key={it.task_id}
             item={it}
-            onPlay={onPlay}
+            onPlay={(url) => {
+              setPreviewUrl(url);
+              onPlay?.(url);
+            }}
             onDelete={() => onDelete(it.task_id)}
           />
         ))}
+      </div>
+
+      {previewUrl ? (
+        <PreviewModal
+          videoUrl={previewUrl}
+          onClose={() => setPreviewUrl(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PreviewModal({
+  videoUrl,
+  onClose,
+}: {
+  videoUrl: string;
+  onClose: () => void;
+}) {
+  // Close on ESC for keyboard users.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const filename =
+    videoUrl.split("/").filter(Boolean).slice(-2).join("_") || "video.mp4";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[92vh] w-full max-w-4xl flex-col gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-1.5 text-sm text-baru-fg hover:border-baru-violet/40"
+          >
+            <span aria-hidden>←</span>
+            <span>Quay lại Workspace</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await downloadVideoBlob(videoUrl, filename);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : String(err));
+                }
+              }}
+              className="rounded-baru-md bg-baru-violet px-3 py-1.5 text-sm font-medium text-white shadow-violet-glow hover:bg-baru-violet-hover"
+            >
+              ⬇ Tải xuống
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-baru-md border border-baru-edge bg-baru-panel-2 px-2.5 py-1.5 text-sm text-baru-dim hover:text-baru-fg"
+              title="Đóng (ESC)"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <video
+          src={videoUrl}
+          autoPlay
+          controls
+          className="mx-auto max-h-[80vh] w-auto max-w-full rounded-baru-md bg-black"
+        />
       </div>
     </div>
   );
@@ -186,14 +289,23 @@ function HistoryCard({
             >
               ▶  Xem
             </button>
-            <a
-              href={item.video_url!}
-              download
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await downloadVideoBlob(
+                    item.video_url!,
+                    `${item.task_id}.mp4`,
+                  );
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : String(err));
+                }
+              }}
               className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-1.5 text-xs text-baru-dim hover:text-baru-fg"
               title="Tải xuống"
             >
               ⬇
-            </a>
+            </button>
           </>
         ) : null}
         <button
