@@ -32,6 +32,26 @@ from baru_pixelle.models.media import MediaResult
 _DEFAULT_BASE_URL = "https://yohomin.com"
 _DEFAULT_TIMEOUT_S = 200.0  # Imagen 3 renders take 60-90s, allow headroom.
 
+# Imagen 3 blocks photoreal generation of anyone reading as a minor.
+# Even with the IMAGEN SAFETY rule in the LLM prompt template
+# (baru_pixelle/prompts/image_generation.py), the LLM occasionally lets
+# a "child" / "daughter" / "son" slip through. Belt-and-suspenders:
+# scrub those tokens client-side before they ever hit /api/imagen/generate.
+# Same pattern Yohomin server.js applies on its end — we mirror it here
+# so the error message ("safety filter rejected") doesn't surface to the
+# user when we could've prevented it.
+_MINOR_WORD_PATTERN = re.compile(
+    r"\b(child(ren)?|kid(s)?|minor(s)?|son(s)?|daughter(s)?|toddler(s)?|"
+    r"infant(s)?|bab(y|ies)|teen(s|ager(s)?)?|schoolchild(ren)?|"
+    r"schoolboy(s)?|schoolgirl(s)?|young\s+(boy|girl))\b",
+    re.IGNORECASE,
+)
+
+
+def _scrub_minor_terms(prompt: str) -> str:
+    """Replace any minor-referencing word with ``adult helper``."""
+    return _MINOR_WORD_PATTERN.sub("adult helper", prompt)
+
 
 async def generate_image_imagen(
     prompt: str,
@@ -66,8 +86,19 @@ async def generate_image_imagen(
             "in config.yaml or BARU_LICENSE_KEY env var."
         )
 
+    # Scrub any minor-referencing words client-side. The LLM prompt
+    # template tells Gemini to avoid these, but we can't trust a single
+    # layer when the failure mode is a hard safety-filter rejection.
+    safe_prompt = _scrub_minor_terms(prompt)
+    if safe_prompt != prompt:
+        logger.warning(
+            "[imagen-yohomin] Scrubbed minor-referencing tokens from prompt "
+            "to avoid Imagen safety filter. Update the LLM prompt template "
+            "if this keeps happening."
+        )
+
     url = f"{base_url.rstrip('/')}/api/imagen/generate"
-    body: dict[str, object] = {"prompt": prompt, "aspectRatio": aspect_ratio}
+    body: dict[str, object] = {"prompt": safe_prompt, "aspectRatio": aspect_ratio}
     if source_image:
         body["sourceImage"] = source_image
 

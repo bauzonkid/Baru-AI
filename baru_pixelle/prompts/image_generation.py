@@ -84,6 +84,12 @@ Based on the existing video script, create corresponding **English** image promp
 - Choose visual presentation methods that best enhance the persuasiveness of the copy
 - Ensure the audience can quickly understand the core viewpoint of the copy through images
 
+## IMAGEN SAFETY (HARD RULE — DO NOT BREAK)
+- NEVER describe children, kids, minors, sons, daughters, infants, toddlers, babies, teens, students, schoolchildren, or anyone visibly under 18.
+- If the narration involves a young/family/school scene, replace the young figure with "adult person", "adult worker", "adult helper", or "adult learner" of comparable build / role.
+- Imagen 3 hard-blocks photoreal generation of minors; using those words guarantees the request is rejected by the safety filter.
+- Same rule applies to anything that could read as a minor — avoid "young boy/girl", "schoolboy/girl", "little one", "kiddo", etc.
+
 ## Creative Guidance
 1. **Phenomenon Description Copy**: Use intuitive scenes to represent social phenomena
 2. **Cause Analysis Copy**: Use visual metaphors of cause-and-effect relationships to represent internal logic
