@@ -25,7 +25,9 @@ type ScriptMode = "ai" | "fixed";
 type GenMode =
   | "slideshow"
   | "custom_media"
-  | "t2v";
+  | "t2v"
+  | "i2v"
+  | "digital_human";
 
 interface ModeMeta {
   key: GenMode;
@@ -54,7 +56,21 @@ const MODES: ModeMeta[] = [
     key: "t2v",
     icon: "🎬",
     label: "Text-to-Video",
-    hint: "Prompt text → AI generate motion video qua WAN 2.1 T2V. Cần ComfyUI local + GPU đủ VRAM (16GB FP16 hoặc 8GB FP8).",
+    hint: "Prompt text → AI motion video qua WAN 2.1 T2V. Cần ComfyUI + 14B model (FP8 cho 8GB VRAM).",
+    requiresComfy: true,
+  },
+  {
+    key: "i2v",
+    icon: "🎞️",
+    label: "Image-to-Video",
+    hint: "Ảnh tĩnh + prompt → motion video qua WAN 2.2 5B. Cần ComfyUI + WanVideoWrapper.",
+    requiresComfy: true,
+  },
+  {
+    key: "digital_human",
+    icon: "🤖",
+    label: "Digital Human",
+    hint: "Ảnh nhân vật + AI script → talking head qua InfiniteTalk. Cần ComfyUI + WanVideoWrapper + 14B model GGUF.",
     requiresComfy: true,
   },
 ];
@@ -874,12 +890,36 @@ function CustomMediaTab({
   );
 }
 
-// Text-to-Video tab — the only Advanced mode currently shipped.
-// Pixelle.AI upstream only includes ONE selfhost video workflow
-// (WAN 2.1 T2V), no Image-to-Video, no Digital Human, no Action Transfer.
-// Those modes need the user to convert kijai's Web UI workflows to API
-// format (via ComfyUI's "Save (API Format)") — out of scope here.
-const T2V_WORKFLOW = "selfhost/video_wan2.1_fusionx.json";
+// Advanced tab — three ComfyUI-backed modes share the same shell with
+// mode-specific config (workflow path, model file, image requirement).
+// All workflows converted from kijai's example_workflows via SethRobinson's
+// /workflow/convert endpoint, then tagged with Pixelle $template hints.
+type AdvancedConfig = {
+  workflow: string;
+  needsImage: boolean;
+  modelHint: string;
+};
+
+const ADVANCED_CONFIGS: Record<"t2v" | "i2v" | "digital_human", AdvancedConfig> = {
+  t2v: {
+    workflow: "selfhost/video_wan2.1_fusionx.json",
+    needsImage: false,
+    modelHint:
+      "Cần WanT2V_MasterModel (14B). 3070 8GB sửa node 37 weight_dtype → fp8_e4m3fn.",
+  },
+  i2v: {
+    workflow: "selfhost/video_wan2.2_5B_i2v.json",
+    needsImage: true,
+    modelHint:
+      "Cần wan2.2_ti2v_5B_fp16.safetensors (~10GB) + umt5-xxl-enc-bf16 + Wan2_2_VAE. 5B fit 8GB sát nút.",
+  },
+  digital_human: {
+    workflow: "selfhost/video_digital_human.json",
+    needsImage: true,
+    modelHint:
+      "Cần wan2.1-i2v-14b-480p-Q8_0.gguf + InfiniteTalk-Single_Q8.gguf + Wan2_1_VAE_bf16. ~16GB models tổng.",
+  },
+};
 
 function AdvancedTab({
   mode,
@@ -893,11 +933,17 @@ function AdvancedTab({
   onReset: () => void;
 }) {
   const meta = MODES.find((m) => m.key === mode);
+  const cfg =
+    mode === "t2v" || mode === "i2v" || mode === "digital_human"
+      ? ADVANCED_CONFIGS[mode]
+      : null;
 
   const [topic, setTopic] = useState("");
-  // Probe ComfyUI on mount + every time the user comes back to this tab,
-  // so the badge reflects reality without forcing a page reload after
-  // they start ComfyUI from the system tray.
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  // Probe ComfyUI on mount + every time the user switches tabs, so the
+  // badge reflects reality without forcing a page reload after they
+  // start ComfyUI from the system tray.
   const [health, setHealth] = useState<ComfyHealth | null>(null);
   const [probing, setProbing] = useState(false);
 
@@ -913,17 +959,32 @@ function AdvancedTab({
     }
   }
 
+  // Reset image picker when switching between Advanced modes so a leftover
+  // selection from i2v doesn't carry over to digital_human.
   useEffect(() => {
-    if (mode === "t2v") probeComfy();
+    setFiles([]);
+    if (mode === "t2v" || mode === "i2v" || mode === "digital_human") {
+      probeComfy();
+    }
   }, [mode]);
 
-  const isBusy = flow.kind === "starting" || flow.kind === "running";
+  const isBusy =
+    uploading || flow.kind === "starting" || flow.kind === "running";
+  const needsFile = cfg?.needsImage ?? false;
   const canSubmit =
-    !isBusy && topic.trim().length > 0 && health?.online === true;
+    !isBusy &&
+    topic.trim().length > 0 &&
+    (!needsFile || files.length > 0) &&
+    health?.online === true;
 
   async function submit() {
+    if (!cfg) return;
     if (!topic.trim()) {
-      alert("Cần nhập prompt mô tả video muốn tạo");
+      alert("Cần nhập prompt mô tả");
+      return;
+    }
+    if (needsFile && files.length === 0) {
+      alert("Cần chọn ít nhất 1 ảnh");
       return;
     }
     if (!health?.online) {
@@ -931,49 +992,78 @@ function AdvancedTab({
       return;
     }
     try {
-      await onStart({
+      const req: VideoGenerateRequest = {
         pipeline: "standard",
         text: topic.trim(),
         mode: "generate",
         frame_template: DEFAULT_TEMPLATE_KEY,
-        media_workflow: T2V_WORKFLOW,
-      });
+        media_workflow: cfg.workflow,
+      };
+      if (needsFile) {
+        setUploading(true);
+        const uploaded = await uploadFiles(files);
+        setUploading(false);
+        req.assets = uploaded.paths;
+      }
+      await onStart(req);
     } catch (err) {
+      setUploading(false);
       alert(err instanceof Error ? err.message : String(err));
     }
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card title={meta?.label ?? "Text-to-Video"} icon={meta?.icon ?? "🎬"}>
+      <Card title={meta?.label ?? "Advanced"} icon={meta?.icon ?? "🎬"}>
         <ComfyHealthBadge
           health={health}
           probing={probing}
           onRefresh={probeComfy}
         />
         <Field
-          label="Prompt mô tả video"
-          hint="Càng cụ thể càng tốt. AI sẽ generate motion video theo mô tả này."
+          label="Prompt mô tả"
+          hint={
+            mode === "digital_human"
+              ? "Mô tả character action — VD: nhân vật đang thuyết trình, vẫy tay."
+              : mode === "i2v"
+                ? "Mô tả motion muốn thêm vào ảnh — VD: cô gái cười và quay đầu."
+                : "Càng cụ thể càng tốt. AI generate motion video theo mô tả."
+          }
         >
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="VD: con mèo cam đang chạy trên bãi cỏ, sunset light, slow motion"
-            rows={4}
+            placeholder="VD: con mèo cam đang chạy trên bãi cỏ, sunset light"
+            rows={3}
             disabled={isBusy}
             className="w-full resize-none rounded-baru-md border border-baru-edge bg-baru-panel-2 px-3.5 py-2.5 text-sm text-baru-fg placeholder:text-baru-muted focus:border-baru-violet/60 focus:outline-none focus:ring-1 focus:ring-baru-violet/40 disabled:opacity-50"
           />
         </Field>
+        {needsFile ? (
+          <Field
+            label={
+              mode === "digital_human"
+                ? `Ảnh nhân vật (${files.length})`
+                : `Ảnh nguồn (${files.length})`
+            }
+            hint={`Chọn 1 ảnh chân dung. Workflow: ${cfg!.workflow}`}
+          >
+            <FilePicker
+              accept="image/*"
+              files={files}
+              onChange={setFiles}
+              disabled={isBusy}
+              placeholder={
+                mode === "digital_human"
+                  ? "Chọn ảnh nhân vật chân dung (1 ảnh)"
+                  : "Chọn ảnh nguồn (1 ảnh)"
+              }
+            />
+          </Field>
+        ) : null}
         <div className="rounded-baru-md border border-baru-edge bg-baru-panel-2 p-3 text-[11px] text-baru-dim">
-          <div className="mb-1 font-medium text-baru-fg">VRAM yêu cầu</div>
-          <div>
-            Model mặc định: <span className="font-mono">WanT2V_MasterModel</span>{" "}
-            (14B FP16, ~28GB VRAM). RTX 3070 8GB / 4060 Ti 8GB cần đổi sang
-            FP8 hoặc GGUF Q4 — sửa node 37 trong workflow JSON{" "}
-            <span className="font-mono">{T2V_WORKFLOW}</span> đổi{" "}
-            <span className="font-mono">weight_dtype</span> sang{" "}
-            <span className="font-mono">fp8_e4m3fn</span>.
-          </div>
+          <div className="mb-1 font-medium text-baru-fg">Model + VRAM</div>
+          <div>{cfg?.modelHint}</div>
         </div>
       </Card>
       <Card title="Tạo video" icon="✨" highlighted>
@@ -983,12 +1073,12 @@ function AdvancedTab({
           <>
             <p className="text-xs text-baru-dim">
               Workflow{" "}
-              <code className="font-mono text-baru-fg">{T2V_WORKFLOW}</code>{" "}
+              <code className="font-mono text-baru-fg">{cfg?.workflow}</code>{" "}
               chạy qua ComfyUI tại{" "}
               <code className="font-mono text-baru-fg">
                 {health?.url || "chưa cấu hình"}
               </code>
-              . WAN 2.1 T2V render 1–5 phút/clip 5 giây tuỳ GPU.
+              . Render 1–10 phút/clip tuỳ workflow + GPU.
             </p>
             <button
               type="button"
@@ -996,13 +1086,17 @@ function AdvancedTab({
               disabled={!canSubmit}
               className="w-full rounded-baru-md bg-baru-violet px-4 py-3 text-sm font-medium text-white shadow-violet-glow transition hover:bg-baru-violet-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
-              {flow.kind === "starting"
-                ? "Đang gửi..."
-                : !health?.online
-                  ? "ComfyUI offline — bật ComfyUI trước"
-                  : topic.trim().length === 0
-                    ? "Nhập prompt trước"
-                    : "🎬  Tạo video"}
+              {uploading
+                ? "Đang upload ảnh..."
+                : flow.kind === "starting"
+                  ? "Đang gửi..."
+                  : !health?.online
+                    ? "ComfyUI offline — bật ComfyUI trước"
+                    : topic.trim().length === 0
+                      ? "Nhập prompt trước"
+                      : needsFile && files.length === 0
+                        ? "Chọn ảnh trước"
+                        : "🎬  Tạo video"}
             </button>
             {flow.kind === "error" ? (
               <ErrorInline message={flow.message} onReset={onReset} />
