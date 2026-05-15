@@ -4,7 +4,6 @@ import {
   listBgm,
   startGenerateAsync,
   getTask,
-  fileUrl,
   type TemplateInfo,
   type BGMInfo,
   type Task,
@@ -81,16 +80,18 @@ export function HomePage() {
     try {
       const task = await getTask(taskId);
       if (task.status === "completed") {
-        const result = task.result as { video_path?: string } | null;
-        const videoPath = result?.video_path;
-        if (!videoPath) {
+        // Backend's async endpoint returns ``{video_url, duration,
+        // file_size}`` — video_url is already a full /api/files/...
+        // URL, no fileUrl() wrap needed.
+        const result = task.result as { video_url?: string } | null;
+        const url = result?.video_url;
+        if (!url) {
           setFlow({
             kind: "error",
-            message: "Task hoàn thành nhưng không có video_path trong result",
+            message: "Task hoàn thành nhưng không có video_url trong result",
           });
           return;
         }
-        const url = await fileUrl(videoPath);
         setFlow({ kind: "done", taskId, videoUrl: url });
         return;
       }
