@@ -138,19 +138,27 @@ async def generate_video_sync(
             "bgm_volume": request_body.bgm_volume,
         }
         
-        # Add TTS workflow if specified
+        # Add TTS inference mode + voice + speed (new API)
+        if request_body.tts_inference_mode:
+            video_params["tts_inference_mode"] = request_body.tts_inference_mode
+        if request_body.tts_voice:
+            video_params["tts_voice"] = request_body.tts_voice
+        if request_body.tts_speed is not None:
+            video_params["tts_speed"] = request_body.tts_speed
+
+        # Add TTS workflow if specified (ComfyUI mode)
         if request_body.tts_workflow:
             video_params["tts_workflow"] = request_body.tts_workflow
-        
+
         # Add ref_audio if specified
         if request_body.ref_audio:
             video_params["ref_audio"] = request_body.ref_audio
-        
+
         # Legacy voice_id support (deprecated)
         if request_body.voice_id:
-            logger.warning("voice_id parameter is deprecated, please use tts_workflow instead")
+            logger.warning("voice_id parameter is deprecated, please use tts_voice instead")
             video_params["voice_id"] = request_body.voice_id
-        
+
         # Add custom template parameters if specified
         if request_body.template_params:
             video_params["template_params"] = request_body.template_params
@@ -285,17 +293,25 @@ async def generate_video_async(
                 if val:
                     video_params[asset_field] = val
             
-            # Add TTS workflow if specified
+            # Add TTS inference mode + voice + speed (new API)
+            if request_body.tts_inference_mode:
+                video_params["tts_inference_mode"] = request_body.tts_inference_mode
+            if request_body.tts_voice:
+                video_params["tts_voice"] = request_body.tts_voice
+            if request_body.tts_speed is not None:
+                video_params["tts_speed"] = request_body.tts_speed
+
+            # Add TTS workflow if specified (ComfyUI mode)
             if request_body.tts_workflow:
                 video_params["tts_workflow"] = request_body.tts_workflow
-            
+
             # Add ref_audio if specified
             if request_body.ref_audio:
                 video_params["ref_audio"] = request_body.ref_audio
-            
+
             # Legacy voice_id support (deprecated)
             if request_body.voice_id:
-                logger.warning("voice_id parameter is deprecated, please use tts_workflow instead")
+                logger.warning("voice_id parameter is deprecated, please use tts_voice instead")
                 video_params["voice_id"] = request_body.voice_id
             
             # Branding: pull author/describe/brand from config.template.branding

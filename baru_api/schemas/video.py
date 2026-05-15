@@ -65,17 +65,31 @@ class VideoGenerateRequest(BaseModel):
     n_scenes: Optional[int] = Field(5, ge=1, le=20, description="Number of scenes (only used in 'generate' mode, ignored in 'fixed' mode)")
     
     # === TTS Parameters ===
+    tts_inference_mode: Optional[Literal["local", "comfyui"]] = Field(
+        None,
+        description="TTS inference mode: 'local' (Edge TTS, default) or 'comfyui'. If not set, pipeline uses 'local'."
+    )
+    tts_voice: Optional[str] = Field(
+        None,
+        description="Edge TTS voice ID for local mode (e.g., 'en-US-AriaNeural', 'vi-VN-HoaiMyNeural')."
+    )
+    tts_speed: Optional[float] = Field(
+        None,
+        ge=0.5,
+        le=2.0,
+        description="TTS speech speed multiplier (0.5 = half speed, 1.0 = normal, 2.0 = double)."
+    )
     tts_workflow: Optional[str] = Field(
-        None, 
-        description="TTS workflow key (e.g., 'runninghub/tts_edge.json'). If not specified, uses default workflow from config."
+        None,
+        description="TTS workflow key (e.g., 'runninghub/tts_edge.json'). Only used when tts_inference_mode='comfyui'."
     )
     ref_audio: Optional[str] = Field(
-        None, 
+        None,
         description="Reference audio path for voice cloning (optional)"
     )
     voice_id: Optional[str] = Field(
-        None, 
-        description="(Deprecated) TTS voice ID for legacy compatibility"
+        None,
+        description="(Deprecated) TTS voice ID for legacy compatibility. Prefer tts_voice."
     )
     
     # === LLM Parameters ===

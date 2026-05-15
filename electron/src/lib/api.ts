@@ -109,6 +109,11 @@ export interface VideoGenerateRequest {
   prompt_prefix?: string | null;
   bgm_path?: string | null;
   bgm_volume?: number;
+  // TTS — new API (preferred). voice_id is legacy and falls through to
+  // tts_voice on the backend.
+  tts_inference_mode?: "local" | "comfyui";
+  tts_voice?: string;
+  tts_speed?: number;
   tts_workflow?: string | null;
   media_workflow?: string | null;
   video_fps?: number;

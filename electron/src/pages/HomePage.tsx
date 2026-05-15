@@ -194,6 +194,9 @@ export function HomePage() {
       n_scenes: scriptMode === "ai" ? nScenes : undefined,
       frame_template: templateKey,
       bgm_path: bgmPath || null,
+      tts_inference_mode: "local",
+      tts_voice: voice,
+      tts_speed: speed,
     });
   }
 
