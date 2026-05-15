@@ -221,6 +221,31 @@ async def generate_video_async(
             media_width, media_height = generator.get_media_size()
             logger.debug(f"Auto-determined media size from template: {media_width}x{media_height}")
             
+            # Translate pipeline's ProgressEvent → task_manager progress.
+            # Pipeline emits 0.0-1.0 floats with optional frame/action
+            # fields; renderer polls /api/tasks/{id} and pulls
+            # progress.percentage + message off the task. Without this,
+            # the UI bar stays at 0% the entire ~2-minute render.
+            def on_progress(event):
+                from baru_pixelle.models.progress import ProgressEvent
+                if not isinstance(event, ProgressEvent):
+                    return
+                if event.frame_current and event.frame_total:
+                    parts = [f"Cảnh {event.frame_current}/{event.frame_total}"]
+                    if event.action:
+                        parts.append(event.action)
+                    if event.event_type and event.event_type != "frame_step":
+                        parts.append(event.event_type)
+                    msg = " · ".join(parts)
+                else:
+                    msg = event.event_type.replace("_", " ")
+                task_manager.update_progress(
+                    task_id=task.task_id,
+                    current=int(event.progress * 100),
+                    total=100,
+                    message=msg,
+                )
+
             # Build video generation parameters
             video_params = {
                 "text": request_body.text,
@@ -239,8 +264,7 @@ async def generate_video_async(
                 "prompt_prefix": request_body.prompt_prefix,
                 "bgm_path": request_body.bgm_path,
                 "bgm_volume": request_body.bgm_volume,
-                # Progress callback can be added here if needed
-                # "progress_callback": lambda event: task_manager.update_progress(...)
+                "progress_callback": on_progress,
             }
             
             # Add TTS workflow if specified
