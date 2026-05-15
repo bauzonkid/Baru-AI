@@ -443,7 +443,7 @@ function SectionImage({
               type="password"
               value={imagenLicense}
               onChange={(e) => onImagenLicense(e.target.value)}
-              placeholder="License key (cùng key Baru-YTB Thumb Studio)"
+              placeholder="License key (auto-fill khi sếp đăng nhập, có thể để trống)"
             />
           </Field>
           <Field label="Yohomin base URL">
@@ -466,6 +466,25 @@ function SectionImage({
               ))}
             </Select>
           </Field>
+
+          <div className="mt-2 rounded-baru-md border border-baru-edge bg-baru-panel-2 p-3">
+            <div className="text-label-xs uppercase text-baru-muted mb-2">
+              Fallback khi Imagen hết quota
+            </div>
+            <p className="mb-2 text-[11px] text-baru-dim">
+              Vertex AI Imagen có quota daily. Nếu hết, app tự chuyển
+              sang Gemini Nano Banana (AI Studio free tier ~100/ngày).
+              Dán key Google AI Studio dưới đây để bật fallback.
+            </p>
+            <Field label="Gemini API Key (fallback)">
+              <Input
+                type="password"
+                value={geminiKey}
+                onChange={(e) => onGeminiKey(e.target.value)}
+                placeholder="AIza... (cùng key Google AI Studio với LLM cũng được)"
+              />
+            </Field>
+          </div>
         </>
       ) : null}
 
