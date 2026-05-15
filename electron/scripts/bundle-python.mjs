@@ -39,14 +39,24 @@ const GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 
 // Keep this list in sync with ``pyproject.toml``'s ``[project] dependencies``.
 const DEPS = [
-  "fastapi>=0.110.0",
-  "uvicorn[standard]>=0.27.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
   "pydantic>=2.0.0",
+  "loguru>=0.7.0",
+  "httpx>=0.28.1",
+  "python-multipart>=0.0.12",
+  "pyyaml>=6.0.0",
+  "certifi>=2025.10.5",
+  "openai>=2.6.0",
+  "google-genai>=0.3.0",
+  "edge-tts==7.2.7",
+  "comfykit>=0.1.12",
+  "ffmpeg-python>=0.2.0",
+  "pillow>=10.0.0,<12",
+  "playwright>=1.58.0",
+  "beautifulsoup4>=4.14.2",
+  "aiohttp>=3.10.0",
   "sse-starlette>=2.1.0",
-  "psutil>=5.9.0",
-  "pillow>=10.0.0",
-  // gdown handles Drive's >100 MB virus-warning page automatically.
-  "gdown>=5.2.0",
 ];
 
 // --- Paths --------------------------------------------------------------
@@ -57,22 +67,6 @@ const BUILD_DIR = path.join(ELECTRON_DIR, "build");
 const PY_DIR = path.join(BUILD_DIR, "python");
 const ZIP_PATH = path.join(BUILD_DIR, "python-embed.zip");
 const GET_PIP_PATH = path.join(BUILD_DIR, "get-pip.py");
-
-// --- Minimal mode -------------------------------------------------------
-//
-// Trigger: ``--minimal`` CLI flag OR ``BARU_BUILD_MINIMAL=1`` env var.
-const IS_MINIMAL =
-  process.argv.includes("--minimal") ||
-  process.env.BARU_BUILD_MINIMAL === "1";
-
-const MINIMAL_DEPS = [
-  "fastapi>=0.110.0",
-  "uvicorn[standard]>=0.27.0",
-  "pydantic>=2.0.0",
-  "sse-starlette>=2.1.0",
-  "gdown>=5.2.0",
-  "psutil>=5.9.0",
-];
 
 // --- Helpers ------------------------------------------------------------
 
@@ -159,6 +153,19 @@ function buildEnv(targetDir, deps, sanityImport, label) {
     targetDir,
   );
 
+  // Bundle Playwright's Chromium INSIDE the env so the installer ships
+  // it instead of downloading ~150MB on first launch. ``PLAYWRIGHT_BROWSERS_PATH=0``
+  // = use the driver dir inside site-packages, which extraResources then
+  // copies along with the rest of python/.
+  if (deps.some((d) => d.startsWith("playwright"))) {
+    log(`[${label}] installing playwright chromium into bundle...`);
+    const env = { ...process.env, PLAYWRIGHT_BROWSERS_PATH: "0" };
+    execSync(
+      `"${pyExe}" -m playwright install chromium`,
+      { stdio: "inherit", cwd: targetDir, env },
+    );
+  }
+
   log(`[${label}] smoke test: ${sanityImport}`);
   run(pyExe, ["-c", sanityImport], targetDir);
 
@@ -192,22 +199,14 @@ async function main() {
     log(`zip cached at ${ZIP_PATH}`);
   }
 
-  if (IS_MINIMAL) {
-    log("=== MINIMAL build (~120MB target) ===");
-    buildEnv(
-      PY_DIR,
-      MINIMAL_DEPS,
-      "import fastapi, uvicorn, gdown; print('OK minimal', fastapi.__version__)",
-      "main(minimal)",
-    );
-  } else {
-    buildEnv(
-      PY_DIR,
-      DEPS,
-      "import fastapi, uvicorn; print('OK', fastapi.__version__)",
-      "main",
-    );
-  }
+  buildEnv(
+    PY_DIR,
+    DEPS,
+    "import fastapi, uvicorn, openai, edge_tts, comfykit, playwright; "
+      + "from google import genai; "
+      + "print('OK', fastapi.__version__)",
+    "main",
+  );
 }
 
 main().catch((err) => {
