@@ -37,12 +37,19 @@ comfyui:
       voice: "en-US-AriaNeural"  # Edge TTS voice; see https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support
       speed: 1.0
 
-  # Image: "gemini" = Gemini API direct (Nano Banana, free tier via AI Studio key),
-  # "comfyui" = ComfyUI workflow (needs ComfyUI server + custom nodes).
+  # Image: 3 modes
+  # - "imagen"  = Imagen 3 / Nano Banana via Yohomin's /api/imagen/generate
+  #              (Vertex AI, sếp's $300 credit pool). Needs Yohomin license key.
+  # - "gemini"  = Gemini Nano Banana direct via Google AI Studio key (free tier).
+  # - "comfyui" = ComfyUI workflow (needs local ComfyUI + custom nodes).
   image:
-    inference_mode: gemini  # gemini | comfyui
+    inference_mode: imagen  # imagen | gemini | comfyui
+    imagen:
+      license_key: ""  # ← Yohomin license key (same as Baru-YTB Thumb Studio)
+      base_url: "https://yohomin.com"
+      aspect_ratio: "9:16"  # MUST be quoted — YAML parses bare 9:16 as a number.
     gemini:
-      api_key: ""  # ← put your Gemini key here (same one as LLM is fine)
+      api_key: ""  # ← only used if inference_mode=gemini
       model: "gemini-2.5-flash-image-preview"
     default_workflow: runninghub/image_flux.json  # only used if inference_mode=comfyui
     prompt_prefix: "Minimalist illustration, clean lines, vibrant colors"

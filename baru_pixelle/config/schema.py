@@ -56,10 +56,30 @@ class GeminiImageConfig(BaseModel):
     model: str = Field(default="gemini-2.5-flash-image-preview", description="Gemini image model")
 
 
+class ImagenYohominConfig(BaseModel):
+    """Imagen 3 / Nano Banana via Yohomin's /api/imagen/generate proxy.
+
+    Uses sếp's Vertex AI $300 credit pool — no per-user GCP setup needed.
+    """
+    license_key: str = Field(default="", description="Yohomin license key (Bearer)")
+    base_url: str = Field(default="https://yohomin.com", description="Yohomin origin URL")
+    aspect_ratio: str = Field(default="9:16", description="One of 1:1, 16:9, 9:16, 4:3, 3:4")
+
+
 class ImageSubConfig(BaseModel):
     """Image-specific configuration (under comfyui.image)"""
-    inference_mode: str = Field(default="comfyui", description="Image inference mode: 'gemini' or 'comfyui'")
-    gemini: GeminiImageConfig = Field(default_factory=GeminiImageConfig, description="Gemini direct image gen")
+    inference_mode: str = Field(
+        default="comfyui",
+        description="Image inference mode: 'imagen' | 'gemini' | 'comfyui'",
+    )
+    imagen: ImagenYohominConfig = Field(
+        default_factory=ImagenYohominConfig,
+        description="Imagen 3 / Nano Banana via Yohomin proxy (Vertex AI)",
+    )
+    gemini: GeminiImageConfig = Field(
+        default_factory=GeminiImageConfig,
+        description="Gemini direct image gen (Nano Banana via AI Studio)",
+    )
     default_workflow: Optional[str] = Field(default=None, description="Default image workflow (optional)")
     prompt_prefix: str = Field(
         default="Minimalist black-and-white matchstick figure style illustration, clean lines, simple sketch style",

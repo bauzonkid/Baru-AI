@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getConfig, saveConfig, type AppConfig } from "@/lib/api";
+import { getConfig, saveConfig, type AppConfig, type ImageMode } from "@/lib/api";
 
 interface Props {
   open: boolean;
@@ -26,7 +26,10 @@ export function SettingsModal({ open, onClose }: Props) {
   const [llmKey, setLlmKey] = useState("");
   const [llmBaseUrl, setLlmBaseUrl] = useState("");
   const [llmModel, setLlmModel] = useState("");
-  const [imageMode, setImageMode] = useState<"gemini" | "comfyui">("gemini");
+  const [imageMode, setImageMode] = useState<ImageMode>("imagen");
+  const [imagenLicense, setImagenLicense] = useState("");
+  const [imagenBaseUrl, setImagenBaseUrl] = useState("https://yohomin.com");
+  const [imagenAspect, setImagenAspect] = useState("9:16");
   const [geminiKey, setGeminiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("");
   const [ttsVoice, setTtsVoice] = useState("");
@@ -46,7 +49,10 @@ export function SettingsModal({ open, onClose }: Props) {
         setLlmBaseUrl(cfg.llm?.base_url ?? "");
         setLlmModel(cfg.llm?.model ?? "");
         const img = cfg.comfyui?.image;
-        setImageMode((img?.inference_mode as "gemini" | "comfyui") ?? "gemini");
+        setImageMode((img?.inference_mode as ImageMode) ?? "imagen");
+        setImagenLicense(img?.imagen?.license_key ?? "");
+        setImagenBaseUrl(img?.imagen?.base_url ?? "https://yohomin.com");
+        setImagenAspect(img?.imagen?.aspect_ratio ?? "9:16");
         setGeminiKey(img?.gemini?.api_key ?? "");
         setGeminiModel(img?.gemini?.model ?? "gemini-2.5-flash-image-preview");
         setPromptPrefix(img?.prompt_prefix ?? "");
@@ -74,6 +80,11 @@ export function SettingsModal({ open, onClose }: Props) {
         comfyui: {
           image: {
             inference_mode: imageMode,
+            imagen: {
+              license_key: imagenLicense,
+              base_url: imagenBaseUrl,
+              aspect_ratio: imagenAspect,
+            },
             gemini: {
               api_key: geminiKey,
               model: geminiModel,
@@ -141,10 +152,16 @@ export function SettingsModal({ open, onClose }: Props) {
 
             <SectionImage
               mode={imageMode}
+              imagenLicense={imagenLicense}
+              imagenBaseUrl={imagenBaseUrl}
+              imagenAspect={imagenAspect}
               geminiKey={geminiKey}
               geminiModel={geminiModel}
               promptPrefix={promptPrefix}
               onMode={setImageMode}
+              onImagenLicense={setImagenLicense}
+              onImagenBaseUrl={setImagenBaseUrl}
+              onImagenAspect={setImagenAspect}
               onGeminiKey={setGeminiKey}
               onGeminiModel={setGeminiModel}
               onPromptPrefix={setPromptPrefix}
@@ -364,21 +381,41 @@ function SectionLLM({
   );
 }
 
+const ASPECT_OPTIONS = [
+  { value: "9:16", label: "9:16 — Dọc (Shorts/Reels/TikTok)" },
+  { value: "1:1", label: "1:1 — Vuông" },
+  { value: "16:9", label: "16:9 — Ngang (YouTube)" },
+  { value: "4:3", label: "4:3" },
+  { value: "3:4", label: "3:4" },
+];
+
 function SectionImage({
   mode,
+  imagenLicense,
+  imagenBaseUrl,
+  imagenAspect,
   geminiKey,
   geminiModel,
   promptPrefix,
   onMode,
+  onImagenLicense,
+  onImagenBaseUrl,
+  onImagenAspect,
   onGeminiKey,
   onGeminiModel,
   onPromptPrefix,
 }: {
-  mode: "gemini" | "comfyui";
+  mode: ImageMode;
+  imagenLicense: string;
+  imagenBaseUrl: string;
+  imagenAspect: string;
   geminiKey: string;
   geminiModel: string;
   promptPrefix: string;
-  onMode: (v: "gemini" | "comfyui") => void;
+  onMode: (v: ImageMode) => void;
+  onImagenLicense: (v: string) => void;
+  onImagenBaseUrl: (v: string) => void;
+  onImagenAspect: (v: string) => void;
   onGeminiKey: (v: string) => void;
   onGeminiModel: (v: string) => void;
   onPromptPrefix: (v: string) => void;
@@ -386,17 +423,52 @@ function SectionImage({
   return (
     <Section
       title="Image gen"
-      hint="Gemini direct = Nano Banana qua Google AI Studio (free tier). ComfyUI = workflow advanced."
+      hint="Imagen = Vertex AI qua Yohomin (sếp's $300 credit). Gemini direct = AI Studio free tier. ComfyUI = workflow advanced."
     >
       <Field label="Mode">
         <Select
           value={mode}
-          onChange={(e) => onMode(e.target.value as "gemini" | "comfyui")}
+          onChange={(e) => onMode(e.target.value as ImageMode)}
         >
+          <option value="imagen">Imagen 3 (Yohomin / Vertex AI)</option>
           <option value="gemini">Gemini direct (Nano Banana)</option>
           <option value="comfyui">ComfyUI workflow</option>
         </Select>
       </Field>
+
+      {mode === "imagen" ? (
+        <>
+          <Field label="Yohomin license key">
+            <Input
+              type="password"
+              value={imagenLicense}
+              onChange={(e) => onImagenLicense(e.target.value)}
+              placeholder="License key (cùng key Baru-YTB Thumb Studio)"
+            />
+          </Field>
+          <Field label="Yohomin base URL">
+            <Input
+              type="text"
+              value={imagenBaseUrl}
+              onChange={(e) => onImagenBaseUrl(e.target.value)}
+              placeholder="https://yohomin.com"
+            />
+          </Field>
+          <Field label="Tỉ lệ ảnh">
+            <Select
+              value={imagenAspect}
+              onChange={(e) => onImagenAspect(e.target.value)}
+            >
+              {ASPECT_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </>
+      ) : null}
+
       {mode === "gemini" ? (
         <>
           <Field label="Gemini API Key">
@@ -417,6 +489,7 @@ function SectionImage({
           </Field>
         </>
       ) : null}
+
       <Field label="Prompt prefix (style)">
         <Input
           type="text"

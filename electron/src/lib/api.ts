@@ -152,8 +152,17 @@ export interface GeminiImageConfig {
   model: string;
 }
 
+export interface ImagenYohominConfig {
+  license_key: string;
+  base_url: string;
+  aspect_ratio: string;
+}
+
+export type ImageMode = "imagen" | "gemini" | "comfyui";
+
 export interface ImageSubConfig {
-  inference_mode: "gemini" | "comfyui";
+  inference_mode: ImageMode;
+  imagen: ImagenYohominConfig;
   gemini: GeminiImageConfig;
   default_workflow: string | null;
   prompt_prefix: string;

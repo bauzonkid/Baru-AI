@@ -25,6 +25,7 @@ from loguru import logger
 
 from baru_pixelle.services.comfy_base_service import ComfyBaseService
 from baru_pixelle.services.gemini_image import generate_image_gemini, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
+from baru_pixelle.services.imagen_yohomin import generate_image_imagen
 from baru_pixelle.models.media import MediaResult
 
 
@@ -200,9 +201,19 @@ class MediaService(ComfyBaseService):
                 comfyui_url="http://192.168.1.100:8188"
             )
         """
-        # Inference mode: param > config > default "comfyui". Video gen never goes
-        # through Gemini direct — only image gen has that path right now.
+        # Inference mode: param > config > default "comfyui". Video gen never
+        # routes outside ComfyUI — only image gen has alternate backends.
         mode = inference_mode or self.config.get("inference_mode", "comfyui")
+        if media_type == "image" and mode == "imagen":
+            imagen_cfg = self.config.get("imagen", {}) or {}
+            license_key = imagen_cfg.get("license_key") or os.environ.get("BARU_LICENSE_KEY", "")
+            return await generate_image_imagen(
+                prompt=prompt,
+                license_key=license_key,
+                base_url=imagen_cfg.get("base_url") or "https://yohomin.com",
+                aspect_ratio=imagen_cfg.get("aspect_ratio") or "9:16",
+                output_path=output_path,
+            )
         if media_type == "image" and mode == "gemini":
             gemini_cfg = self.config.get("gemini", {}) or {}
             api_key = gemini_cfg.get("api_key") or os.environ.get("GEMINI_API_KEY", "")
