@@ -20,6 +20,7 @@ Key Feature:
   to ensure perfect sync between audio and video (no padding, no trimming needed)
 """
 
+from pathlib import Path
 from typing import Callable, Optional
 
 import httpx
@@ -419,18 +420,44 @@ class FrameProcessor:
         task_id: str,
         media_type: str
     ) -> str:
-        """Download media (image or video) from URL to local file"""
+        """Materialize media into the task's frame dir.
+
+        - ``http://`` / ``https://`` → download with httpx.
+        - Local path (Imagen / Gemini direct providers write to
+          ``output/<uuid>.png`` straight out of the SDK) → copy in
+          place instead of trying to HTTP-fetch a file:// path.
+
+        Either way the frame ends up at the same canonical location so
+        the rest of the pipeline (HTML composition + ffmpeg) doesn't
+        care which backend produced the bytes.
+        """
         from baru_pixelle.utils.os_util import get_task_frame_path
         output_path = get_task_frame_path(task_id, frame_index, media_type)
-        
+        # ``get_task_frame_path`` doesn't mkdir — the http branch
+        # historically got away with it because the task dir already
+        # existed from the TTS step that ran earlier. Be defensive so
+        # the very first frame doesn't crash on a fresh task.
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
+        # Local-file shortcut for backends that write to disk directly.
+        if not url.startswith(("http://", "https://")):
+            import shutil
+            src = Path(url)
+            if not src.is_file():
+                raise FileNotFoundError(
+                    f"Media path doesn't exist and is not a URL: {url!r}"
+                )
+            shutil.copy(src, output_path)
+            return output_path
+
         timeout = httpx.Timeout(connect=10.0, read=60, write=60, pool=60)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url)
             response.raise_for_status()
-            
+
             with open(output_path, 'wb') as f:
                 f.write(response.content)
-        
+
         return output_path
     
     async def _get_video_duration(self, video_path: str) -> float:
