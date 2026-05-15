@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import os
 import re
-import uuid
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -208,8 +209,15 @@ async def generate_image_imagen(
 
     ext = "png" if "png" in mime else ("jpg" if "jpeg" in mime else "img")
     if not output_path:
-        output_path = str(Path("output") / f"{uuid.uuid4().hex}.{ext}")
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        # Stage in tempdir, not in project ``output/``. The caller
+        # (frame_processor._download_media) copies the result into the
+        # task's frame dir; leaving a copy at output/<uuid>.png pollutes
+        # the workspace with one file per frame per render.
+        fd, output_path = tempfile.mkstemp(suffix=f".{ext}", prefix="baru_imagen_")
+        os.close(fd)
+    else:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
     with open(output_path, "wb") as f:
         f.write(image_bytes)
 

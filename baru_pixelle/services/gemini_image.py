@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-import uuid
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -62,10 +62,15 @@ async def generate_image_gemini(
     image_bytes = await asyncio.to_thread(_call)
 
     if not output_path:
-        unique_id = uuid.uuid4().hex
-        output_path = str(Path("output") / f"{unique_id}.png")
+        # Stage in tempdir, not in project ``output/``. The caller
+        # (frame_processor._download_media) copies the result into the
+        # task's frame dir; leaving a copy at output/<uuid>.png pollutes
+        # the workspace with one file per frame per render.
+        fd, output_path = tempfile.mkstemp(suffix=".png", prefix="baru_gemini_")
+        os.close(fd)
+    else:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as f:
         f.write(image_bytes)
 

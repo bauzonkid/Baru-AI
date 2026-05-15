@@ -442,12 +442,25 @@ class FrameProcessor:
         # Local-file shortcut for backends that write to disk directly.
         if not url.startswith(("http://", "https://")):
             import shutil
+            import tempfile
             src = Path(url)
             if not src.is_file():
                 raise FileNotFoundError(
                     f"Media path doesn't exist and is not a URL: {url!r}"
                 )
             shutil.copy(src, output_path)
+            # Imagen/Gemini-direct providers stage their PNG under the
+            # system tempdir; cleanup the staging file once we've copied
+            # the bytes into the task frame. Belt-and-suspenders: only
+            # unlink when the source actually lives in tempdir, so we
+            # never delete a user-provided asset path (asset-based
+            # pipeline) by accident.
+            try:
+                tmpdir = Path(tempfile.gettempdir()).resolve()
+                if src.resolve().is_relative_to(tmpdir):
+                    src.unlink(missing_ok=True)
+            except (OSError, ValueError):
+                pass
             return output_path
 
         timeout = httpx.Timeout(connect=10.0, read=60, write=60, pool=60)
