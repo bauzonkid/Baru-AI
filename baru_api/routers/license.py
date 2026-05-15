@@ -115,7 +115,13 @@ def _cache_get(key: str) -> Optional[str]:
 
 
 def _persist_license(key: Optional[str], label: Optional[str] = None) -> None:
-    """Write license_key + label to .env. ``key=None`` deletes both."""
+    """Write license_key + label to .env AND mirror to process env so
+    ``BARU_LICENSE_KEY`` is visible to in-process services
+    (e.g. imagen_yohomin reads it as the fallback when
+    ``comfyui.image.imagen.license_key`` is blank).
+
+    ``key=None`` deletes both .env entries + clears process env.
+    """
     p = _user_env_path()
     if p is None:
         raise HTTPException(
@@ -126,10 +132,14 @@ def _persist_license(key: Optional[str], label: Optional[str] = None) -> None:
     if key is None:
         env.pop("BARU_LICENSE_KEY", None)
         env.pop("BARU_LICENSE_LABEL", None)
+        os.environ.pop("BARU_LICENSE_KEY", None)
+        os.environ.pop("BARU_LICENSE_LABEL", None)
     else:
         env["BARU_LICENSE_KEY"] = key
+        os.environ["BARU_LICENSE_KEY"] = key
     if label is not None and key is not None:
         env["BARU_LICENSE_LABEL"] = label
+        os.environ["BARU_LICENSE_LABEL"] = label
     if env:
         _write_env(p, env)
     elif p.exists():
@@ -223,6 +233,14 @@ def refresh_license_at_startup() -> None:
     if not key:
         _set_license_validity(False, "not_configured", None)
         return
+    # Mirror the saved key to process env immediately so services that
+    # read BARU_LICENSE_KEY (imagen_yohomin) see it even before the
+    # yohomin probe finishes. If the probe ends up wiping the key
+    # below, _persist_license(None) will also pop the env var.
+    os.environ["BARU_LICENSE_KEY"] = key
+    cached_label = _cache_get("BARU_LICENSE_LABEL")
+    if cached_label:
+        os.environ["BARU_LICENSE_LABEL"] = cached_label
     status, label, err = _fetch_license_status(key)
     if status == "ok":
         try:
