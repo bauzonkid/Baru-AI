@@ -17,6 +17,7 @@ license + credit pool across both apps.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import re
 import uuid
@@ -39,6 +40,29 @@ class ImagenQuotaExceeded(RuntimeError):
     user has an AI Studio key configured.
     """
 
+
+def _check_imagen_response(r: httpx.Response) -> None:
+    """Raise the right typed exception for a non-2xx Imagen response.
+
+    Vertex's per-base-model rate limit ("Quota exceeded for
+    aiplatform.googleapis.com/online_prediction_requests_per_base_model")
+    surfaces as a 500 with that message in ``error`` — we route to
+    ``ImagenQuotaExceeded`` so the outer retry loop wakes up. Anything
+    else stays a plain RuntimeError so MediaService can decide whether
+    to fall back to Gemini direct.
+    """
+    if r.status_code < 400:
+        return
+    try:
+        err = (r.json() or {}).get("error") or r.text[:300]
+    except Exception:
+        err = r.text[:300]
+    if "quota" in err.lower() or "rate" in err.lower():
+        raise ImagenQuotaExceeded(
+            f"Yohomin /api/imagen/generate {r.status_code}: {err}"
+        )
+    raise RuntimeError(f"Yohomin /api/imagen/generate {r.status_code}: {err}")
+
 # Imagen 3 blocks photoreal generation of anyone reading as a minor.
 # Even with the IMAGEN SAFETY rule in the LLM prompt template
 # (baru_pixelle/prompts/image_generation.py), the LLM occasionally lets
@@ -60,6 +84,13 @@ def _scrub_minor_terms(prompt: str) -> str:
     return _MINOR_WORD_PATTERN.sub("adult helper", prompt)
 
 
+# How long to wait when Vertex's per-minute quota slams the request.
+# Default Imagen 3 quota is 6 RPM = one slot every 10s, so waiting 65s
+# clears the rolling window with a safety buffer for clock skew.
+_QUOTA_RETRY_WAIT_S = 65.0
+_QUOTA_MAX_RETRIES = 2
+
+
 async def generate_image_imagen(
     prompt: str,
     license_key: str,
@@ -70,6 +101,13 @@ async def generate_image_imagen(
 ) -> MediaResult:
     """POST to ``{base_url}/api/imagen/generate``, write the returned PNG
     to ``output_path``, return ``MediaResult(media_type="image", url=path)``.
+
+    On a per-minute quota hit (Vertex's "online_prediction_requests_per
+    _base_model" rate limit, default 6 RPM), the call sleeps 65s and
+    retries up to ``_QUOTA_MAX_RETRIES`` times. The 60-second sliding
+    window resets within that wait, so a render that bursts ahead of
+    the limit just pauses instead of failing — much friendlier than the
+    Gemini-fallback path (which kicks in only after retries also fail).
 
     Args:
         prompt: Image prompt (text-to-image) or restyle instruction
@@ -127,23 +165,33 @@ async def generate_image_imagen(
         f"mode={'edit' if source_image else 'generate'})"
     )
 
-    async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_S) as client:
-        r = await client.post(url, json=body, headers=headers)
-
-    if r.status_code >= 400:
+    # Retry on per-minute quota. Each retry waits ~65s so the Vertex
+    # rolling window clears. After _QUOTA_MAX_RETRIES the typed
+    # exception propagates so MediaService can try Gemini fallback or
+    # surface the error to the user.
+    last_exc: Optional[ImagenQuotaExceeded] = None
+    for attempt in range(_QUOTA_MAX_RETRIES + 1):
         try:
-            err = (r.json() or {}).get("error") or r.text[:300]
-        except Exception:
-            err = r.text[:300]
-        # Vertex AI's quota signal — "Quota exceeded for
-        # aiplatform.googleapis.com/online_prediction_requests_per_base_model"
-        # — surfaces as a 500 with that message in ``error``. Surface as
-        # a typed exception so MediaService can route to Gemini direct.
-        if "quota" in err.lower() or "rate" in err.lower():
-            raise ImagenQuotaExceeded(
-                f"Yohomin /api/imagen/generate {r.status_code}: {err}"
-            )
-        raise RuntimeError(f"Yohomin /api/imagen/generate {r.status_code}: {err}")
+            async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT_S) as client:
+                r = await client.post(url, json=body, headers=headers)
+            _check_imagen_response(r)
+            break  # success — drop out and parse below
+        except ImagenQuotaExceeded as exc:
+            last_exc = exc
+            if attempt < _QUOTA_MAX_RETRIES:
+                logger.warning(
+                    f"⏳ Imagen quota hit (try {attempt + 1}/"
+                    f"{_QUOTA_MAX_RETRIES + 1}); waiting "
+                    f"{_QUOTA_RETRY_WAIT_S:.0f}s for rate window reset..."
+                )
+                await asyncio.sleep(_QUOTA_RETRY_WAIT_S)
+                continue
+            raise
+    else:
+        # Shouldn't reach here — either ``break`` or ``raise`` exits.
+        # Guard against silent fallthrough just in case.
+        if last_exc:
+            raise last_exc
 
     data = r.json()
     image_data_url = data.get("image", "")
