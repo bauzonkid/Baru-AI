@@ -170,6 +170,48 @@ export async function fileUrl(relPath: string): Promise<string> {
   return `${base}/api/files/${clean}`;
 }
 
+// ── History (persistent workspace) ──────────────────────────────────────────
+
+export interface HistoryItem {
+  task_id: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
+  created_at?: string | null;
+  completed_at?: string | null;
+  // Flat shape — matches what persistence.list_tasks_paginated returns
+  // (title / duration / n_frames / file_size / video_path at top level).
+  title?: string | null;
+  duration?: number;
+  n_frames?: number;
+  file_size?: number;
+  video_path?: string;
+  /** Filled by the server: ready-to-load /api/files/... URL when status=completed. */
+  video_url?: string | null;
+}
+
+export interface HistoryPage {
+  tasks: HistoryItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export async function listHistory(
+  page: number = 1,
+  pageSize: number = 50,
+): Promise<HistoryPage> {
+  const c = await getClient();
+  const r = await c.get<HistoryPage>("/api/history", {
+    params: { page, page_size: pageSize },
+  });
+  return r.data;
+}
+
+export async function deleteHistory(taskId: string): Promise<void> {
+  const c = await getClient();
+  await c.delete(`/api/history/${taskId}`);
+}
+
 // ── Config ──────────────────────────────────────────────────────────────────
 
 export interface LLMConfig {

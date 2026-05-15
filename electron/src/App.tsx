@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/AppShell";
+import { AppShell, type NavKey } from "@/components/AppShell";
 import { LicenseGate } from "@/components/LicenseGate";
 import { SettingsModal } from "@/components/SettingsModal";
 import { HomePage } from "@/pages/HomePage";
+import { WorkspacePage } from "@/pages/WorkspacePage";
 import {
   getLicenseStatus,
   ping,
@@ -23,6 +24,7 @@ export default function App() {
   const [backend, setBackend] = useState<Backend>({ kind: "checking" });
   const [gate, setGate] = useState<Gate>({ kind: "checking" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [nav, setNav] = useState<NavKey>("home");
 
   // Ping FastAPI with retries. Cold-start Python can take 5-10s and
   // the main process spawns FastAPI in parallel with window open, so
@@ -114,6 +116,9 @@ export default function App() {
 
   return (
     <AppShell
+      activeNav={nav}
+      onNavigate={setNav}
+      showNav={ready}
       topbarLeft={<BackendPill state={backend} />}
       topbarRight={
         <>
@@ -132,7 +137,11 @@ export default function App() {
       }
     >
       {ready ? (
-        <HomePage />
+        nav === "workspace" ? (
+          <WorkspacePage onPlay={() => { /* future: detail modal */ }} />
+        ) : (
+          <HomePage />
+        )
       ) : backend.kind === "down" ? (
         <div className="mx-auto max-w-xl px-6 py-10">
           <div className="rounded-lg border border-red-900 bg-red-950/40 p-5 text-sm">

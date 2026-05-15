@@ -23,6 +23,7 @@ from baru_api.routers import (
     files_router,
     frame_router,
     health_router,
+    history_router,
     image_router,
     license_router,
     llm_router,
@@ -142,6 +143,7 @@ app.include_router(resources_router, prefix=api_config.api_prefix)
 app.include_router(frame_router, prefix=api_config.api_prefix)
 app.include_router(config_router, prefix=api_config.api_prefix)
 app.include_router(license_router, prefix=api_config.api_prefix)
+app.include_router(history_router, prefix=api_config.api_prefix)
 
 
 @app.get("/")
