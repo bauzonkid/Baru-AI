@@ -28,3 +28,10 @@ Thumbs.db
 # User data
 .env
 config.yaml
+
+# Generated media (per-task working dirs)
+output/
+data/
+
+# Playwright browsers (downloaded per-machine)
+ms-playwright/

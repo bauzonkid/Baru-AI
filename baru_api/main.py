@@ -1,4 +1,7 @@
-"""FastAPI entry point — `python -m uvicorn baru_api.main:app`."""
+"""FastAPI entry point — `python -m uvicorn baru_api.main:app`.
+
+Merged from Pixelle-Video api/app.py with Baru-Pixelle Electron-spawn defaults.
+"""
 
 from __future__ import annotations
 
@@ -10,19 +13,47 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from baru_api import __version__
+from baru_api.config import api_config
+from baru_api.dependencies import shutdown_pixelle_video
+from baru_api.tasks import task_manager
+from baru_api.routers import (
+    content_router,
+    files_router,
+    frame_router,
+    health_router,
+    image_router,
+    llm_router,
+    resources_router,
+    tasks_router,
+    tts_router,
+    video_router,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Start/stop task manager and Pixelle core lifecycle."""
     user_data = os.environ.get("BARU_USER_DATA", "")
-    logger.info(f"Baru-Pixelle API v{__version__} starting (user_data={user_data!r})")
+    logger.info(
+        f"Baru-Pixelle API v{__version__} starting (user_data={user_data!r})"
+    )
+    await task_manager.start()
+    logger.info("Baru-Pixelle API started")
+
     yield
+
     logger.info("Baru-Pixelle API shutting down")
+    await task_manager.stop()
+    await shutdown_pixelle_video()
+    logger.info("Baru-Pixelle API shutdown complete")
 
 
 app = FastAPI(
     title="Baru-Pixelle API",
     version=__version__,
+    docs_url=api_config.docs_url,
+    redoc_url=api_config.redoc_url,
+    openapi_url=api_config.openapi_url,
     lifespan=lifespan,
 )
 
@@ -38,12 +69,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check router (no prefix — exposes /health and /version).
+app.include_router(health_router)
+
+# API routers (prefixed with /api).
+app.include_router(llm_router, prefix=api_config.api_prefix)
+app.include_router(tts_router, prefix=api_config.api_prefix)
+app.include_router(image_router, prefix=api_config.api_prefix)
+app.include_router(content_router, prefix=api_config.api_prefix)
+app.include_router(video_router, prefix=api_config.api_prefix)
+app.include_router(tasks_router, prefix=api_config.api_prefix)
+app.include_router(files_router, prefix=api_config.api_prefix)
+app.include_router(resources_router, prefix=api_config.api_prefix)
+app.include_router(frame_router, prefix=api_config.api_prefix)
+
 
 @app.get("/")
 async def root() -> dict[str, str]:
+    """Electron pill ping target."""
     return {"service": "baru-pixelle", "version": __version__}
-
-
-@app.get("/health")
-async def health() -> dict[str, bool]:
-    return {"ok": True}

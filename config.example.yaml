@@ -1,0 +1,55 @@
+# Baru-Pixelle Configuration
+# Copy this file to config.yaml and fill in your settings.
+# ⚠️ Never commit config.yaml to Git (it contains API keys).
+
+project_name: Baru-Pixelle
+
+# ==================== LLM Configuration ====================
+# Any OpenAI SDK-compatible endpoint. For Gemini, use Google AI Studio's
+# OpenAI-compat endpoint — free tier, get key at https://aistudio.google.com/apikey
+llm:
+  api_key: ""
+  base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  model: "gemini-2.5-flash"
+
+# Other presets:
+# Qwen Max:        base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  model: "qwen-max"
+# OpenAI GPT-4o:   base_url: "https://api.openai.com/v1"                          model: "gpt-4o"
+# DeepSeek:        base_url: "https://api.deepseek.com"                           model: "deepseek-chat"
+# Ollama (local):  base_url: "http://localhost:11434/v1"                          model: "llama3.2"
+
+# ==================== Media Configuration ====================
+comfyui:
+  # ComfyUI server (only needed if you use selfhost workflows or non-Gemini image gen).
+  comfyui_url: http://127.0.0.1:8188
+  comfyui_api_key: ""
+  runninghub_api_key: ""
+  runninghub_concurrent_limit: 1
+
+  # TTS: "local" = Edge TTS direct (no ComfyUI needed, free), "comfyui" = workflow
+  tts:
+    inference_mode: local  # local | comfyui
+    default_workflow: selfhost/tts_edge.json  # only used if inference_mode=comfyui
+    local:
+      voice: "en-US-AriaNeural"  # Edge TTS voice; see https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support
+      speed: 1.0
+
+  # Image: "gemini" = Gemini API direct (Nano Banana, free tier via AI Studio key),
+  # "comfyui" = ComfyUI workflow (needs ComfyUI server + custom nodes).
+  image:
+    inference_mode: gemini  # gemini | comfyui
+    gemini:
+      api_key: ""  # ← put your Gemini key here (same one as LLM is fine)
+      model: "gemini-2.5-flash-image-preview"
+    default_workflow: runninghub/image_flux.json  # only used if inference_mode=comfyui
+    prompt_prefix: "Minimalist illustration, clean lines, vibrant colors"
+
+  # Video gen (advanced — needs ComfyUI). Skip if you don't use motion clips.
+  video:
+    default_workflow: runninghub/video_wan2.1_fusionx.json
+    prompt_prefix: "Cinematic, smooth motion"
+
+# ==================== Template Configuration ====================
+template:
+  # Vertical 1080x1920 portrait template by default (Shorts/Reels/TikTok).
+  default_template: "1080x1920/image_default.html"
