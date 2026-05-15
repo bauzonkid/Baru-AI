@@ -14,29 +14,11 @@ type LoadState =
   | { kind: "loaded"; items: HistoryItem[]; total: number }
   | { kind: "error"; message: string };
 
-/** Force-download via blob — backend serves Content-Disposition: inline
- *  for browser preview, which makes a plain ``<a download>`` navigate
- *  away from the Workspace instead of saving. Fetching as blob, then
- *  triggering an anchor click on a blob URL bypasses the header and
- *  works the same in browser + Electron renderer. */
-async function downloadVideoBlob(url: string, filename: string): Promise<void> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Tải video thất bại (HTTP ${res.status})`);
-  const blob = await res.blob();
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  // Defer revoke so the browser has time to start the save.
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-}
-
 export function WorkspacePage({ onPlay }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<
+    { videoUrl: string; videoPath?: string } | null
+  >(null);
 
   async function reload() {
     setState({ kind: "loading" });
@@ -128,7 +110,7 @@ export function WorkspacePage({ onPlay }: Props) {
             key={it.task_id}
             item={it}
             onPlay={(url) => {
-              setPreviewUrl(url);
+              setPreview({ videoUrl: url, videoPath: it.video_path });
               onPlay?.(url);
             }}
             onDelete={() => onDelete(it.task_id)}
@@ -136,10 +118,11 @@ export function WorkspacePage({ onPlay }: Props) {
         ))}
       </div>
 
-      {previewUrl ? (
+      {preview ? (
         <PreviewModal
-          videoUrl={previewUrl}
-          onClose={() => setPreviewUrl(null)}
+          videoUrl={preview.videoUrl}
+          videoPath={preview.videoPath}
+          onClose={() => setPreview(null)}
         />
       ) : null}
     </div>
@@ -148,9 +131,11 @@ export function WorkspacePage({ onPlay }: Props) {
 
 function PreviewModal({
   videoUrl,
+  videoPath,
   onClose,
 }: {
   videoUrl: string;
+  videoPath?: string;
   onClose: () => void;
 }) {
   // Close on ESC for keyboard users.
@@ -161,9 +146,6 @@ function PreviewModal({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
-
-  const filename =
-    videoUrl.split("/").filter(Boolean).slice(-2).join("_") || "video.mp4";
 
   return (
     <div
@@ -184,19 +166,15 @@ function PreviewModal({
             <span>Quay lại Workspace</span>
           </button>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await downloadVideoBlob(videoUrl, filename);
-                } catch (err) {
-                  alert(err instanceof Error ? err.message : String(err));
-                }
-              }}
-              className="rounded-baru-md bg-baru-violet px-3 py-1.5 text-sm font-medium text-white shadow-violet-glow hover:bg-baru-violet-hover"
-            >
-              ⬇ Tải xuống
-            </button>
+            {videoPath && window.baru?.showItemInFolder ? (
+              <button
+                type="button"
+                onClick={() => window.baru!.showItemInFolder!(videoPath)}
+                className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-1.5 text-sm text-baru-dim hover:text-baru-fg"
+              >
+                📂 Mở thư mục
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -281,40 +259,31 @@ function HistoryCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {completed ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onPlay(item.video_url!)}
-              className="flex-1 rounded-baru-md bg-baru-violet px-3 py-1.5 text-xs font-medium text-white hover:bg-baru-violet-hover"
-            >
-              ▶  Xem
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await downloadVideoBlob(
-                    item.video_url!,
-                    `${item.task_id}.mp4`,
-                  );
-                } catch (err) {
-                  alert(err instanceof Error ? err.message : String(err));
-                }
-              }}
-              className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-1.5 text-xs text-baru-dim hover:text-baru-fg"
-              title="Tải xuống"
-            >
-              ⬇
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => onPlay(item.video_url!)}
+            className="flex-1 rounded-baru-md bg-baru-violet px-3 py-1.5 text-xs font-medium text-white hover:bg-baru-violet-hover"
+          >
+            ▶  Xem
+          </button>
+        ) : null}
+        {item.video_path && window.baru?.showItemInFolder ? (
+          <button
+            type="button"
+            onClick={() => window.baru!.showItemInFolder!(item.video_path!)}
+            className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-1.5 text-xs text-baru-dim hover:text-baru-fg"
+            title="Mở thư mục chứa video"
+          >
+            📂  Thư mục
+          </button>
         ) : null}
         <button
           type="button"
           onClick={onDelete}
           className="rounded-baru-md border border-baru-edge bg-baru-panel-2 px-3 py-1.5 text-xs text-baru-muted hover:border-baru-err/40 hover:text-baru-err"
-          title="Xóa"
+          title="Xóa khỏi đĩa"
         >
-          🗑
+          🗑  Xóa
         </button>
       </div>
     </article>
