@@ -25,7 +25,7 @@ type ScriptMode = "ai" | "fixed";
 type GenMode =
   | "slideshow"
   | "custom_media"
-  | "i2v";
+  | "t2v";
 
 interface ModeMeta {
   key: GenMode;
@@ -51,10 +51,10 @@ const MODES: ModeMeta[] = [
     requiresComfy: false,
   },
   {
-    key: "i2v",
+    key: "t2v",
     icon: "🎬",
-    label: "Image-to-Video",
-    hint: "Upload ảnh → motion video qua WAN 2.1. Cần ComfyUI local.",
+    label: "Text-to-Video",
+    hint: "Prompt text → AI generate motion video qua WAN 2.1 T2V. Cần ComfyUI local + GPU đủ VRAM (16GB FP16 hoặc 8GB FP8).",
     requiresComfy: true,
   },
 ];
@@ -874,11 +874,12 @@ function CustomMediaTab({
   );
 }
 
-// Image-to-Video tab — the only Advanced mode currently shipped.
-// Digital Human + Action Transfer were removed because Pixelle.AI upstream
-// doesn't provide selfhost workflows for them, and Path C (user-installed
-// ComfyUI) is the only distribution model we support.
-const I2V_WORKFLOW = "selfhost/video_wan2.1_fusionx.json";
+// Text-to-Video tab — the only Advanced mode currently shipped.
+// Pixelle.AI upstream only includes ONE selfhost video workflow
+// (WAN 2.1 T2V), no Image-to-Video, no Digital Human, no Action Transfer.
+// Those modes need the user to convert kijai's Web UI workflows to API
+// format (via ComfyUI's "Save (API Format)") — out of scope here.
+const T2V_WORKFLOW = "selfhost/video_wan2.1_fusionx.json";
 
 function AdvancedTab({
   mode,
@@ -894,8 +895,6 @@ function AdvancedTab({
   const meta = MODES.find((m) => m.key === mode);
 
   const [topic, setTopic] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
   // Probe ComfyUI on mount + every time the user comes back to this tab,
   // so the badge reflects reality without forcing a page reload after
   // they start ComfyUI from the system tray.
@@ -915,72 +914,67 @@ function AdvancedTab({
   }
 
   useEffect(() => {
-    if (mode === "i2v") probeComfy();
+    if (mode === "t2v") probeComfy();
   }, [mode]);
 
-  const isBusy = uploading || flow.kind === "starting" || flow.kind === "running";
-  const canSubmit = !isBusy && files.length > 0 && health?.online === true;
+  const isBusy = flow.kind === "starting" || flow.kind === "running";
+  const canSubmit =
+    !isBusy && topic.trim().length > 0 && health?.online === true;
 
   async function submit() {
-    if (files.length === 0) {
-      alert("Cần chọn ít nhất 1 ảnh");
+    if (!topic.trim()) {
+      alert("Cần nhập prompt mô tả video muốn tạo");
       return;
     }
     if (!health?.online) {
       alert("ComfyUI chưa online. Mở Cấu hình → ComfyUI để kiểm tra URL.");
       return;
     }
-    setUploading(true);
     try {
-      const uploaded = await uploadFiles(files);
-      setUploading(false);
       await onStart({
         pipeline: "standard",
-        text: topic.trim() || "Generated video",
-        mode: topic.trim() ? "generate" : "fixed",
+        text: topic.trim(),
+        mode: "generate",
         frame_template: DEFAULT_TEMPLATE_KEY,
-        media_workflow: I2V_WORKFLOW,
-        assets: uploaded.paths,
+        media_workflow: T2V_WORKFLOW,
       });
     } catch (err) {
-      setUploading(false);
       alert(err instanceof Error ? err.message : String(err));
     }
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card title={meta?.label ?? "Image-to-Video"} icon={meta?.icon ?? "🎬"}>
+      <Card title={meta?.label ?? "Text-to-Video"} icon={meta?.icon ?? "🎬"}>
         <ComfyHealthBadge
           health={health}
           probing={probing}
           onRefresh={probeComfy}
         />
         <Field
-          label="Chủ đề / caption (tuỳ chọn)"
-          hint="Để AI viết script kèm motion. Để trống = chỉ dùng ảnh + workflow defaults."
+          label="Prompt mô tả video"
+          hint="Càng cụ thể càng tốt. AI sẽ generate motion video theo mô tả này."
         >
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="VD: con mèo nhảy múa, mây trôi qua núi"
-            rows={2}
+            placeholder="VD: con mèo cam đang chạy trên bãi cỏ, sunset light, slow motion"
+            rows={4}
             disabled={isBusy}
             className="w-full resize-none rounded-baru-md border border-baru-edge bg-baru-panel-2 px-3.5 py-2.5 text-sm text-baru-fg placeholder:text-baru-muted focus:border-baru-violet/60 focus:outline-none focus:ring-1 focus:ring-baru-violet/40 disabled:opacity-50"
           />
         </Field>
-        <Field
-          label={`Ảnh nguồn (${files.length})`}
-          hint={`Workflow: ${I2V_WORKFLOW}`}
-        >
-          <FilePicker
-            accept="image/*"
-            files={files}
-            onChange={setFiles}
-            disabled={isBusy}
-            placeholder="Chọn ảnh nguồn (1 ảnh)"
-          />
-        </Field>
+        <div className="rounded-baru-md border border-baru-edge bg-baru-panel-2 p-3 text-[11px] text-baru-dim">
+          <div className="mb-1 font-medium text-baru-fg">VRAM yêu cầu</div>
+          <div>
+            Model mặc định: <span className="font-mono">WanT2V_MasterModel</span>{" "}
+            (14B FP16, ~28GB VRAM). RTX 3070 8GB / 4060 Ti 8GB cần đổi sang
+            FP8 hoặc GGUF Q4 — sửa node 37 trong workflow JSON{" "}
+            <span className="font-mono">{T2V_WORKFLOW}</span> đổi{" "}
+            <span className="font-mono">weight_dtype</span> sang{" "}
+            <span className="font-mono">fp8_e4m3fn</span>.
+          </div>
+        </div>
       </Card>
       <Card title="Tạo video" icon="✨" highlighted>
         {flow.kind === "running" ? (
@@ -988,11 +982,13 @@ function AdvancedTab({
         ) : (
           <>
             <p className="text-xs text-baru-dim">
-              {files.length} ảnh sẽ được gửi qua ComfyUI tại{" "}
+              Workflow{" "}
+              <code className="font-mono text-baru-fg">{T2V_WORKFLOW}</code>{" "}
+              chạy qua ComfyUI tại{" "}
               <code className="font-mono text-baru-fg">
                 {health?.url || "chưa cấu hình"}
               </code>
-              . WAN 2.1 render khoảng 1–5 phút/clip tuỳ GPU.
+              . WAN 2.1 T2V render 1–5 phút/clip 5 giây tuỳ GPU.
             </p>
             <button
               type="button"
@@ -1000,12 +996,12 @@ function AdvancedTab({
               disabled={!canSubmit}
               className="w-full rounded-baru-md bg-baru-violet px-4 py-3 text-sm font-medium text-white shadow-violet-glow transition hover:bg-baru-violet-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
-              {uploading
-                ? "Đang upload..."
-                : flow.kind === "starting"
-                  ? "Đang gửi..."
-                  : !health?.online
-                    ? "ComfyUI offline — bật ComfyUI trước"
+              {flow.kind === "starting"
+                ? "Đang gửi..."
+                : !health?.online
+                  ? "ComfyUI offline — bật ComfyUI trước"
+                  : topic.trim().length === 0
+                    ? "Nhập prompt trước"
                     : "🎬  Tạo video"}
             </button>
             {flow.kind === "error" ? (
