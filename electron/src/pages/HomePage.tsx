@@ -148,6 +148,15 @@ export function HomePage() {
   const isBusy = flow.kind === "starting" || flow.kind === "running";
   const canGenerate = !isBusy && topic.trim().length > 0;
 
+  // Done state takes over the whole page: the 3-col input grid no
+  // longer matters once a video exists, and sticking the result inside
+  // a 240px column truncates both the player and its action buttons.
+  if (flow.kind === "done") {
+    return (
+      <VideoDonePage videoUrl={flow.videoUrl} onReset={onReset} />
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
       <Hero />
@@ -337,10 +346,8 @@ export function HomePage() {
                 <ErrorInline message={flow.message} onReset={onReset} />
               ) : null}
             </>
-          ) : flow.kind === "running" ? (
-            <ProgressInline task={flow.task} onCancel={onReset} />
           ) : (
-            <VideoInline videoUrl={flow.videoUrl} onReset={onReset} />
+            <ProgressInline task={flow.task} onCancel={onReset} />
           )}
         </Card>
       </div>
@@ -543,7 +550,7 @@ function ProgressInline({
   );
 }
 
-function VideoInline({
+function VideoDonePage({
   videoUrl,
   onReset,
 }: {
@@ -551,33 +558,55 @@ function VideoInline({
   onReset: () => void;
 }) {
   return (
-    <>
-      <div className="flex items-center gap-2 text-sm">
-        <span className="h-1.5 w-1.5 rounded-full bg-baru-ok" />
-        <span className="text-baru-fg">Hoàn thành</span>
-      </div>
-      <video
-        controls
-        src={videoUrl}
-        className="w-full rounded-baru-md bg-black"
-      />
-      <div className="flex flex-wrap gap-2">
-        <a
-          href={videoUrl}
-          download
-          className="flex-1 rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-3 py-2 text-center text-xs text-baru-fg hover:border-baru-violet/40"
-        >
-          ⬇  Tải xuống
-        </a>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8">
+      {/* Top action bar — back button always visible, doesn't scroll off
+          when the player + caption push down. */}
+      <header className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onReset}
-          className="rounded-baru-md border border-baru-edge bg-baru-panel-2 px-3 py-2 text-xs text-baru-dim hover:text-baru-fg"
+          className="flex items-center gap-2 rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-4 py-2 text-sm font-medium text-baru-fg transition hover:border-baru-violet/40 hover:text-white"
         >
-          Mới
+          <span aria-hidden>←</span>
+          <span>Tạo video khác</span>
         </button>
+        <div className="flex items-center gap-2 text-xs text-baru-dim">
+          <span className="h-1.5 w-1.5 rounded-full bg-baru-ok" />
+          <span>Hoàn thành</span>
+        </div>
+      </header>
+
+      {/* Player — vertical 9:16 templates fit a max-h container nicely
+          without overflowing on tall screens. */}
+      <div className="rounded-baru-lg border border-baru-violet/30 bg-baru-panel p-4">
+        <video
+          controls
+          autoPlay
+          src={videoUrl}
+          className="mx-auto block max-h-[70vh] w-auto max-w-full rounded-baru-md bg-black"
+        />
       </div>
-    </>
+
+      {/* Action row — download + open in new tab. Bottom-of-page rather
+          than overlaid so the player gets the full real estate. */}
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <a
+          href={videoUrl}
+          download
+          className="rounded-baru-md bg-baru-violet px-4 py-2 text-sm font-medium text-white shadow-violet-glow transition hover:bg-baru-violet-hover"
+        >
+          ⬇  Tải xuống
+        </a>
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-baru-md border border-baru-edge-bright bg-baru-panel-2 px-4 py-2 text-sm text-baru-dim transition hover:border-baru-violet/40 hover:text-baru-fg"
+        >
+          Mở trong tab mới
+        </a>
+      </div>
+    </div>
   );
 }
 
