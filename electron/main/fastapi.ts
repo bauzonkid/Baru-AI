@@ -35,9 +35,9 @@ const state: FastApiState = {
 /**
  * Working directory for the FastAPI subprocess.
  *
- *   Dev:   project root ``D:\uSubaru\Baru-Pixelle\``
+ *   Dev:   project root ``D:\uSubaru\Baru-AI\``
  *   Prod:  ``<resourcesPath>`` — electron-builder ships ``baru_api/`` +
- *          ``baru_pixelle/`` there via ``extraResources``.
+ *          ``baru_ai/`` there via ``extraResources``.
  */
 function projectRoot(): string {
   if (app.isPackaged) {
@@ -175,7 +175,7 @@ export async function startFastApi(
   // UnicodeEncodeError.
   env.PYTHONIOENCODING = "utf-8";
   // Belt for dev-mode Python: pin sys.path so any Popen()'d child can
-  // import baru_api / baru_pixelle regardless of cwd quirks. Packaged
+  // import baru_api / baru_ai regardless of cwd quirks. Packaged
   // build relies on python311._pth instead (embed Python ignores
   // PYTHONPATH in isolated mode).
   env.PYTHONPATH = cwd;

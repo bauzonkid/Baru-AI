@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from typing import Annotated
 from fastapi import Depends
 from loguru import logger
 
-from baru_pixelle.service import PixelleVideoCore
+from baru_ai.service import PixelleVideoCore
 
 
 # Global Pixelle-Video instance
@@ -39,7 +39,7 @@ async def get_pixelle_video() -> PixelleVideoCore:
     if _pixelle_video_instance is None:
         _pixelle_video_instance = PixelleVideoCore()
         await _pixelle_video_instance.initialize()
-        logger.info("✅ Pixelle-Video initialized for API")
+        logger.info("âœ… Pixelle-Video initialized for API")
     
     return _pixelle_video_instance
 
@@ -52,7 +52,7 @@ async def shutdown_pixelle_video():
         await _pixelle_video_instance.cleanup()
         _pixelle_video_instance = None
     
-    from baru_pixelle.services.frame_html import HTMLFrameGenerator
+    from baru_ai.services.frame_html import HTMLFrameGenerator
     await HTMLFrameGenerator.close_browser()
 
 

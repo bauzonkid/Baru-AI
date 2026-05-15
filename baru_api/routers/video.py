@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -111,8 +111,8 @@ async def generate_video_sync(
         if not request_body.frame_template:
             raise ValueError("frame_template is required to determine media size")
         
-        from baru_pixelle.services.frame_html import HTMLFrameGenerator
-        from baru_pixelle.utils.template_util import resolve_template_path
+        from baru_ai.services.frame_html import HTMLFrameGenerator
+        from baru_ai.utils.template_util import resolve_template_path
         template_path = resolve_template_path(request_body.frame_template)
         generator = HTMLFrameGenerator(template_path)
         media_width, media_height = generator.get_media_size()
@@ -214,29 +214,29 @@ async def generate_video_async(
             if not request_body.frame_template:
                 raise ValueError("frame_template is required to determine media size")
             
-            from baru_pixelle.services.frame_html import HTMLFrameGenerator
-            from baru_pixelle.utils.template_util import resolve_template_path
+            from baru_ai.services.frame_html import HTMLFrameGenerator
+            from baru_ai.utils.template_util import resolve_template_path
             template_path = resolve_template_path(request_body.frame_template)
             generator = HTMLFrameGenerator(template_path)
             media_width, media_height = generator.get_media_size()
             logger.debug(f"Auto-determined media size from template: {media_width}x{media_height}")
             
-            # Translate pipeline's ProgressEvent → task_manager progress.
+            # Translate pipeline's ProgressEvent â†’ task_manager progress.
             # Pipeline emits 0.0-1.0 floats with optional frame/action
             # fields; renderer polls /api/tasks/{id} and pulls
             # progress.percentage + message off the task. Without this,
             # the UI bar stays at 0% the entire ~2-minute render.
             def on_progress(event):
-                from baru_pixelle.models.progress import ProgressEvent
+                from baru_ai.models.progress import ProgressEvent
                 if not isinstance(event, ProgressEvent):
                     return
                 if event.frame_current and event.frame_total:
-                    parts = [f"Cảnh {event.frame_current}/{event.frame_total}"]
+                    parts = [f"Cáº£nh {event.frame_current}/{event.frame_total}"]
                     if event.action:
                         parts.append(event.action)
                     if event.event_type and event.event_type != "frame_step":
                         parts.append(event.event_type)
-                    msg = " · ".join(parts)
+                    msg = " Â· ".join(parts)
                 else:
                     msg = event.event_type.replace("_", " ")
                 task_manager.update_progress(
@@ -269,7 +269,7 @@ async def generate_video_async(
             }
 
             # Forward asset paths to the pipeline. Different pipelines /
-            # advanced modes look at different keys — the asset_based
+            # advanced modes look at different keys â€” the asset_based
             # pipeline reads ``assets``, digital human reads
             # ``character_assets``, action transfer reads ``video_assets``
             # + ``image_assets``. We just hand them straight to
@@ -300,9 +300,9 @@ async def generate_video_async(
             
             # Branding: pull author/describe/brand from config.template.branding
             # and merge into template_params. Request-level template_params
-            # win — sếp can still override per-render. Empty strings are
+            # win â€” sáº¿p can still override per-render. Empty strings are
             # filtered so the template's built-in default keeps showing.
-            from baru_pixelle.config import config_manager
+            from baru_ai.config import config_manager
             branding = config_manager.config.template.branding
             tpl_params = dict(request_body.template_params or {})
             for k, v in (

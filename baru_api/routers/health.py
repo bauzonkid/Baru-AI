@@ -24,7 +24,7 @@ class HealthResponse(BaseModel):
     """Health check response"""
     status: str = "healthy"
     version: str = "0.1.0"
-    service: str = "Baru-Pixelle API"
+    service: str = "Baru-AI API"
 
 
 class CapabilitiesResponse(BaseModel):

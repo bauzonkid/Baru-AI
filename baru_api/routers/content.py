@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ from baru_api.schemas.content import (
     TitleGenerateRequest,
     TitleGenerateResponse,
 )
-from baru_pixelle.utils.content_generators import (
+from baru_ai.utils.content_generators import (
     generate_narrations_from_topic,
     generate_image_prompts,
     generate_title,

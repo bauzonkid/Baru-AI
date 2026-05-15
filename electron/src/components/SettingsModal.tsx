@@ -624,7 +624,7 @@ function SectionBranding({
           type="text"
           value={brand}
           onChange={(e) => onBrand(e.target.value)}
-          placeholder="VD: Baru-Pixelle hoặc tên brand riêng"
+          placeholder="VD: Baru-AI hoặc tên brand riêng"
         />
       </Field>
     </Section>

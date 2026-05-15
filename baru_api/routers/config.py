@@ -1,4 +1,4 @@
-"""Config endpoints — read + write config.yaml from the UI."""
+﻿"""Config endpoints â€” read + write config.yaml from the UI."""
 
 from typing import Any
 
@@ -6,13 +6,13 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 from pydantic import BaseModel
 
-from baru_pixelle.config.manager import ConfigManager
+from baru_ai.config.manager import ConfigManager
 
 router = APIRouter(prefix="/config", tags=["Config"])
 
 
 class ConfigUpdateRequest(BaseModel):
-    """Partial config update — deep-merged into existing config.yaml."""
+    """Partial config update â€” deep-merged into existing config.yaml."""
 
     updates: dict[str, Any]
 
@@ -22,7 +22,7 @@ async def get_config() -> dict[str, Any]:
     """Return current configuration as a plain dict.
 
     Note: this exposes API keys to anyone who can reach the local FastAPI
-    port. That's by design — the renderer needs them to render the
+    port. That's by design â€” the renderer needs them to render the
     Settings form pre-filled. FastAPI only binds 127.0.0.1, so the keys
     don't leave the machine.
     """
@@ -54,7 +54,7 @@ async def update_config(request: ConfigUpdateRequest) -> dict[str, Any]:
             except Exception as e:
                 logger.warning(f"Cleanup failed during config reload (non-fatal): {e}")
             deps._pixelle_video_instance = None
-            logger.info("PixelleVideoCore invalidated — will rebuild on next request")
+            logger.info("PixelleVideoCore invalidated â€” will rebuild on next request")
 
         return cm.config.to_dict()
 

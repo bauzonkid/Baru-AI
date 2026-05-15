@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ from baru_api.schemas.resources import (
     BGMInfo,
     BGMListResponse,
 )
-from baru_pixelle.utils.os_util import list_resource_files, get_root_path, get_data_path
-from baru_pixelle.utils.template_util import get_all_templates_with_info
+from baru_ai.utils.os_util import list_resource_files, get_root_path, get_data_path
+from baru_ai.utils.template_util import get_all_templates_with_info
 
 router = APIRouter(prefix="/resources", tags=["Resources"])
 

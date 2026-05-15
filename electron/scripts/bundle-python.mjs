@@ -4,7 +4,7 @@
  *
  * Downloads the official Windows embeddable Python distribution, enables
  * ``site.py`` (otherwise pip can't find third-party packages), bootstraps
- * pip, then installs Baru-Pixelle's runtime dependencies into
+ * pip, then installs Baru-AI's runtime dependencies into
  * ``Lib/site-packages``.
  *
  * Output layout (relative to repo root):
@@ -115,7 +115,7 @@ function buildEnv(targetDir, deps, sanityImport, label) {
   }
 
   // Rewrite _pth to enable site + project root + site-packages so any
-  // subprocess the env spawns can import baru_api / baru_pixelle.
+  // subprocess the env spawns can import baru_api / baru_ai.
   if (existsSync(pthFile)) {
     log(`[${label}] rewriting python311._pth`);
     const fixed = [

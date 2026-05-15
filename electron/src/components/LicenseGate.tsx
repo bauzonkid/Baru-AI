@@ -83,7 +83,7 @@ export function LicenseGate({ onSuccess }: LicenseGateProps) {
             <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-baru-xl border border-baru-edge-bright bg-baru-panel-3">
               <FilmStripIcon className="h-9 w-9 text-baru-violet" />
             </div>
-            <h1 className="text-display-lg text-baru-fg">Baru-Pixelle</h1>
+            <h1 className="text-display-lg text-baru-fg">Baru-AI</h1>
             <p className="text-sm text-baru-dim/80">
               Tạo video ngắn AI từ một chủ đề
             </p>
@@ -149,9 +149,9 @@ export function LicenseGate({ onSuccess }: LicenseGateProps) {
             <div className="flex items-start justify-center gap-2 text-baru-dim/70">
               <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
               <p className="text-left text-[12px] leading-relaxed">
-                Liên hệ admin để xin license cho Baru-Pixelle. Key được lưu
+                Liên hệ admin để xin license cho Baru-AI. Key được lưu
                 trên máy này — không cần nhập lại. Mỗi tool (Baru-YTB,
-                Baru-Manga, Baru-Pixelle) dùng license riêng.
+                Baru-Manga, Baru-AI) dùng license riêng.
               </p>
             </div>
             <div className="flex items-center justify-center gap-6 pt-1">

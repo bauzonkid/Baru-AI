@@ -103,10 +103,10 @@ const after = JSON.parse(readFileSync(pkgPath, "utf8")).version;
 const tag = `v${after}`;
 console.log(`\n[release] Version bumped: ${before} -> ${after}`);
 
-// Mirror version into baru_pixelle/__init__.py so the FastAPI ``/`` endpoint
+// Mirror version into baru_ai/__init__.py so the FastAPI ``/`` endpoint
 // (and the UI's "v0.1.x" badge) match electron's version. Single source
 // of truth across the Python + Electron halves.
-const pyInitPath = resolve(REPO, "baru_pixelle", "__init__.py");
+const pyInitPath = resolve(REPO, "baru_ai", "__init__.py");
 const pyInit = readFileSync(pyInitPath, "utf8");
 const pyInitNew = pyInit.replace(
   /__version__\s*=\s*"[^"]*"/,
@@ -130,7 +130,7 @@ try {
     `\n[release] !! publish failed. Reverting version bump...`,
   );
   sh(
-    "git checkout HEAD -- electron/package.json electron/package-lock.json baru_pixelle/__init__.py",
+    "git checkout HEAD -- electron/package.json electron/package-lock.json baru_ai/__init__.py",
     REPO,
   );
   die("publish failed. package.json reverted. See output above for the underlying error.");
@@ -139,7 +139,7 @@ try {
 // ---- 5. Commit + tag at repo root ---------------------------------------
 
 sh(
-  "git add electron/package.json electron/package-lock.json baru_pixelle/__init__.py",
+  "git add electron/package.json electron/package-lock.json baru_ai/__init__.py",
   REPO,
 );
 sh(`git commit -m "Release ${tag}"`, REPO);
@@ -159,5 +159,5 @@ try {
 
 console.log(
   `\n[release] ✅ Release ${tag} published to GitHub and pushed.\n` +
-    `   https://github.com/bauzonkid/Baru-Pixelle/releases/tag/${tag}\n`,
+    `   https://github.com/bauzonkid/Baru-AI/releases/tag/${tag}\n`,
 );

@@ -21,14 +21,14 @@ if not exist ".venv\Scripts\python.exe" (
 if not exist "electron\package.json" (
   echo.
   echo ERROR: electron\package.json khong thay tai "%cd%".
-  echo Hay dat dev.bat tai repo root cua Baru-Pixelle.
+  echo Hay dat dev.bat tai repo root cua Baru-AI.
   echo.
   pause
   exit /b 1
 )
 
 echo.
-echo === Baru-Pixelle dev mode ===
+echo === Baru-AI dev mode ===
 
 REM Cleanup orphans from a previous crashed run. Common cause of
 REM "backend down": last session left python.exe holding port 5000,

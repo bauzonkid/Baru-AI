@@ -191,7 +191,7 @@ export async function manualCheckForUpdate(): Promise<UpdateCheckResult> {
     const w = getWindowFn?.();
     const r = await dialog.showMessageBox(w ?? undefined!, {
       type: "info",
-      title: "Baru-Pixelle — Có bản mới",
+      title: "Baru-AI — Có bản mới",
       message: `Bản ${remote} đã sẵn sàng.`,
       detail:
         `Phiên bản hiện tại: ${currentVersion}\n\n` +
@@ -251,7 +251,7 @@ export async function manualCheckForUpdate(): Promise<UpdateCheckResult> {
       const w = getWindowFn?.();
       dialog.showMessageBox(w ?? undefined!, {
         type: "error",
-        title: "Baru-Pixelle — Lỗi check update",
+        title: "Baru-AI — Lỗi check update",
         message: "Không check được bản mới.",
         detail: dlgMsg,
         buttons: ["Đóng"],

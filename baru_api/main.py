@@ -1,6 +1,6 @@
 """FastAPI entry point — `python -m uvicorn baru_api.main:app`.
 
-Merged from Pixelle-Video api/app.py with Baru-Pixelle Electron-spawn defaults.
+Merged from Pixelle-Video api/app.py with Baru-AI Electron-spawn defaults.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     """Start/stop task manager + revalidate license on every boot."""
     user_data = os.environ.get("BARU_USER_DATA", "")
     logger.info(
-        f"Baru-Pixelle API v{__version__} starting (user_data={user_data!r})"
+        f"Baru-AI API v{__version__} starting (user_data={user_data!r})"
     )
     # Probe yohomin for the saved license before serving any request.
     # This is what flips _LICENSE_VALID = True so middleware lets the
@@ -52,14 +52,14 @@ async def lifespan(app: FastAPI):
     # tool gated until LicenseGate posts a working one.
     refresh_license_at_startup()
     await task_manager.start()
-    logger.info("Baru-Pixelle API started")
+    logger.info("Baru-AI API started")
 
     yield
 
-    logger.info("Baru-Pixelle API shutting down")
+    logger.info("Baru-AI API shutting down")
     await task_manager.stop()
     await shutdown_pixelle_video()
-    logger.info("Baru-Pixelle API shutdown complete")
+    logger.info("Baru-AI API shutdown complete")
 
 
 # Endpoints the license middleware lets through regardless of validity.
@@ -88,7 +88,7 @@ def _license_bypass(path: str) -> bool:
 
 
 app = FastAPI(
-    title="Baru-Pixelle API",
+    title="Baru-AI API",
     version=__version__,
     docs_url=api_config.docs_url,
     redoc_url=api_config.redoc_url,
@@ -151,4 +151,4 @@ app.include_router(uploads_router, prefix=api_config.api_prefix)
 @app.get("/")
 async def root() -> dict[str, str]:
     """Electron pill ping target."""
-    return {"service": "baru-pixelle", "version": __version__}
+    return {"service": "baru-ai", "version": __version__}

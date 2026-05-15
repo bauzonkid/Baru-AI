@@ -1,4 +1,4 @@
-# Baru-Pixelle
+# Baru-AI
 
 AI auto short-video engine — Electron desktop port of [AIDC-AI/Pixelle-Video](https://github.com/AIDC-AI/Pixelle-Video) (Apache-2.0).
 
@@ -30,7 +30,7 @@ cd electron
 BARU_PYTHON="../.venv/Scripts/python.exe" npm run dev
 ```
 
-App mở cửa sổ "Baru-Pixelle", backend pill xanh khi FastAPI sidecar boot xong (~3-5s).
+App mở cửa sổ "Baru-AI", backend pill xanh khi FastAPI sidecar boot xong (~3-5s).
 
 ## Production build
 
@@ -38,10 +38,10 @@ App mở cửa sổ "Baru-Pixelle", backend pill xanh khi FastAPI sidecar boot x
 cd electron
 npm run bundle:python      # Tải Python 3.11 embed + cài deps + bundle Chromium (~500MB)
 npm run bundle:ffmpeg      # Tải ffmpeg/ffprobe static binary (~50MB)
-npm run dist               # electron-builder → release/Baru-Pixelle-Setup-X.Y.Z.exe
+npm run dist               # electron-builder → release/Baru-AI-Setup-X.Y.Z.exe
 ```
 
-Output: `electron/release/Baru-Pixelle-Setup-0.1.0.exe` (~700MB, NSIS installer cho phép user chọn thư mục cài).
+Output: `electron/release/Baru-AI-Setup-0.1.0.exe` (~700MB, NSIS installer cho phép user chọn thư mục cài).
 
 ## Release flow
 
@@ -54,14 +54,14 @@ npm run release:patch      # bump 0.1.0 → 0.1.1, tạo git tag, push
 npm run publish            # build + electron-builder --publish always
 ```
 
-**Yêu cầu:** repo GitHub `bauzonkid/Baru-Pixelle` phải tồn tại, có `GH_TOKEN` env var với quyền `repo`.
+**Yêu cầu:** repo GitHub `bauzonkid/Baru-AI` phải tồn tại, có `GH_TOKEN` env var với quyền `repo`.
 
 ## Cấu trúc
 
 ```
 .
 ├── baru_api/               # FastAPI routers (25 endpoints: video gen, LLM, TTS, image, tasks, config, files, resources)
-├── baru_pixelle/           # Core: services (llm/tts/media/video/frame), pipelines (standard/asset_based/custom), prompts, config
+├── baru_ai/           # Core: services (llm/tts/media/video/frame), pipelines (standard/asset_based/custom), prompts, config
 ├── templates/              # 31 HTML frame templates (1080x1920 / 1920x1080 / 1080x1080)
 ├── workflows/              # ComfyUI workflow JSONs (advanced mode — selfhost + runninghub)
 ├── bgm/                    # Default BGM

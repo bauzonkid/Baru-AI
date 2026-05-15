@@ -17,10 +17,10 @@ import { buildMenu } from "./menu.js";
 import { manualCheckForUpdate, setupAutoUpdater } from "./updater.js";
 
 // Override the auto-derived app name so app.getPath("userData") returns
-// %APPDATA%\Baru-Pixelle\ instead of %APPDATA%\baru-pixelle-electron\.
+// %APPDATA%\Baru-AI\ instead of %APPDATA%\Baru-AI-electron\.
 // MUST come before any app.getPath("userData") call — including those
 // triggered by Electron internals during startup.
-app.setName("Baru-Pixelle");
+app.setName("Baru-AI");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,7 +44,7 @@ async function createWindow(): Promise<void> {
     minWidth: 1024,
     minHeight: 700,
     backgroundColor: "#0a0a0a",
-    title: "Baru-Pixelle",
+    title: "Baru-AI",
     icon: APP_ICON,
     autoHideMenuBar: true,
     webPreferences: {

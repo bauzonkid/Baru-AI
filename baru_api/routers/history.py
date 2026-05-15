@@ -1,11 +1,11 @@
-"""History endpoints — list / inspect / delete completed video tasks.
+﻿"""History endpoints â€” list / inspect / delete completed video tasks.
 
-Backed by ``baru_pixelle.services.history_manager.HistoryManager``,
+Backed by ``baru_ai.services.history_manager.HistoryManager``,
 which scans the on-disk ``output/<task_id>/`` directories (each with
 ``metadata.json``, ``storyboard.json``, ``final.mp4``). Persistent
 across app restarts, unlike the in-memory ``task_manager.list_tasks``.
 
-UI: powers the "Workspace" page that lists all videos sếp đã render.
+UI: powers the "Workspace" page that lists all videos sáº¿p Ä‘Ã£ render.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ async def list_history(
     """Paginated list of past video tasks, newest first.
 
     Each item carries the topic ("input.text"), duration, status,
-    timestamps, and — when status=="completed" — a ready-to-load
+    timestamps, and â€” when status=="completed" â€” a ready-to-load
     ``video_url`` pointing at ``/api/files/.../final.mp4`` so the
     frontend can render a thumbnail/<video> without a second round-trip.
     """
@@ -43,7 +43,7 @@ async def list_history(
     )
 
     # Inject video_url for completed tasks. The index serialises tasks
-    # in a flat shape — ``video_path``, ``title``, ``duration`` sit at
+    # in a flat shape â€” ``video_path``, ``title``, ``duration`` sit at
     # the top of each item, not under nested ``result``.
     base_url = str(request.base_url).rstrip("/")
     for item in data.get("tasks", []):
@@ -51,14 +51,14 @@ async def list_history(
         if video_path:
             # Strip the leading project root so /api/files serves it.
             # Persistence writes absolute paths like
-            #   D:\uSubaru\Baru-Pixelle\output\<task>\final.mp4
+            #   D:\uSubaru\Baru-AI\output\<task>\final.mp4
             # We want the path relative to project root ("output/<task>/final.mp4").
             from pathlib import Path
             try:
                 rel = Path(video_path).resolve().relative_to(Path.cwd().resolve())
                 item["video_url"] = f"{base_url}/api/files/{rel.as_posix()}"
             except (ValueError, OSError):
-                # Path is outside cwd (rare — manual import?). Fall
+                # Path is outside cwd (rare â€” manual import?). Fall
                 # back to absolute path with the original separator;
                 # /api/files may still resolve depending on its config.
                 item["video_url"] = f"{base_url}/api/files/{video_path.replace(chr(92), '/')}"

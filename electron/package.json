@@ -1,8 +1,8 @@
 {
-  "name": "baru-pixelle-electron",
+  "name": "baru-ai-electron",
   "version": "0.1.0",
   "private": true,
-  "description": "Electron + React desktop UI for Baru-Pixelle",
+  "description": "Electron + React desktop UI for Baru-AI",
   "author": "yohomin <bauzonkid@yohomin.com>",
   "main": "dist-electron/main/index.js",
   "type": "module",
@@ -43,8 +43,8 @@
     "vite-plugin-electron-renderer": "^0.14.6"
   },
   "build": {
-    "appId": "com.yohomin.baru-pixelle",
-    "productName": "Baru-Pixelle",
+    "appId": "com.yohomin.baru-ai",
+    "productName": "Baru-AI",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -86,8 +86,8 @@
         ]
       },
       {
-        "from": "../baru_pixelle",
-        "to": "baru_pixelle",
+        "from": "../baru_ai",
+        "to": "baru_ai",
         "filter": [
           "**/*.py",
           "**/*.json",
@@ -114,14 +114,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Baru-Pixelle",
+      "shortcutName": "Baru-AI",
       "deleteAppDataOnUninstall": false
     },
     "publish": [
       {
         "provider": "github",
         "owner": "bauzonkid",
-        "repo": "Baru-Pixelle",
+        "repo": "Baru-AI",
         "releaseType": "release"
       }
     ]

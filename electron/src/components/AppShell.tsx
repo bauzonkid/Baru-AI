@@ -33,7 +33,7 @@ export function AppShell({
     <div className="flex h-screen flex-col bg-baru-bg text-baru-fg">
       <header className="flex h-12 items-center justify-between border-b border-baru-edge px-4">
         <div className="flex items-center gap-4">
-          <span className="font-medium text-baru-fg">Baru-Pixelle</span>
+          <span className="font-medium text-baru-fg">Baru-AI</span>
           {showNav && onNavigate ? (
             <nav className="flex items-center gap-1">
               {NAV_ITEMS.map((it) => {

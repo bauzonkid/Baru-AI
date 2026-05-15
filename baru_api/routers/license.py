@@ -161,12 +161,12 @@ def _fetch_license_status(
     """
     qs = urllib.parse.urlencode({"device_id": _device_id()})
     url = (
-        f"{LICENSE_SERVER_BASE}/api/baru-pixelle/license/"
+        f"{LICENSE_SERVER_BASE}/api/baru-ai/license/"
         f"{urllib.parse.quote(key)}?{qs}"
     )
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "Baru-Pixelle/license-client"},
+        headers={"User-Agent": "Baru-AI/license-client"},
     )
     try:
         with urllib.request.urlopen(req, timeout=_LICENSE_FETCH_TIMEOUT_S) as resp:

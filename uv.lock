@@ -176,7 +176,7 @@ wheels = [
 ]
 
 [[package]]
-name = "baru-pixelle"
+name = "baru-ai"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from loguru import logger
 
 from baru_api.dependencies import PixelleVideoDep
 from baru_api.schemas.tts import TTSSynthesizeRequest, TTSSynthesizeResponse
-from baru_pixelle.utils.tts_util import get_audio_duration
+from baru_ai.utils.tts_util import get_audio_duration
 
 router = APIRouter(prefix="/tts", tags=["Basic Services"])
 

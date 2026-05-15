@@ -1,4 +1,4 @@
-# Copyright (C) 2025 AIDC-AI
+﻿# Copyright (C) 2025 AIDC-AI
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ from loguru import logger
 
 from baru_api.dependencies import PixelleVideoDep
 from baru_api.schemas.frame import FrameRenderRequest, FrameRenderResponse, TemplateParamsResponse
-from baru_pixelle.services.frame_html import HTMLFrameGenerator
-from baru_pixelle.utils.template_util import parse_template_size, resolve_template_path
+from baru_ai.services.frame_html import HTMLFrameGenerator
+from baru_ai.utils.template_util import parse_template_size, resolve_template_path
 
 router = APIRouter(prefix="/frame", tags=["Frame Rendering"])
 

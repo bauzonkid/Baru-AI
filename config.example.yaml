@@ -1,8 +1,8 @@
-# Baru-Pixelle Configuration
+# Baru-AI Configuration
 # Copy this file to config.yaml and fill in your settings.
 # ⚠️ Never commit config.yaml to Git (it contains API keys).
 
-project_name: Baru-Pixelle
+project_name: Baru-AI
 
 # ==================== LLM Configuration ====================
 # Default: 9router (Yohomin's local proxy) — multi-account Gemini rotation,
