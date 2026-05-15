@@ -601,7 +601,7 @@ function SectionBranding({
   return (
     <Section
       title="Thương hiệu (footer video)"
-      hint="Thay 3 dòng @Pixelle.AI / Open Source Omnimodal AI Creative Agent / Pixelle-Video ở cuối video. Để trống = giữ mặc định của template."
+      hint="3 ô text hiển thị ở cuối mỗi video. Để trống = không hiện gì."
     >
       <Field label="Tên kênh (góc dưới trái)">
         <Input
