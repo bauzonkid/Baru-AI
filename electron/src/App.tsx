@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { SettingsModal } from "@/components/SettingsModal";
 import { HomePage } from "@/pages/HomePage";
 import { ping } from "@/lib/api";
 
@@ -10,6 +11,7 @@ type Backend =
 
 export default function App() {
   const [backend, setBackend] = useState<Backend>({ kind: "checking" });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Ping FastAPI with retries. Cold-start Python can take 5-10s and
   // the main process spawns FastAPI in parallel with window open, so
@@ -53,7 +55,21 @@ export default function App() {
   return (
     <AppShell
       topbarLeft={<BackendPill state={backend} />}
-      topbarRight={<UpdateButton />}
+      topbarRight={
+        <>
+          {backend.kind === "ok" ? (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="rounded border border-neutral-800 bg-neutral-900/40 px-2 py-1 text-[11px] text-neutral-300 hover:border-neutral-700 hover:text-neutral-100"
+              title="Cấu hình"
+            >
+              Cấu hình
+            </button>
+          ) : null}
+          <UpdateButton />
+        </>
+      }
     >
       {backend.kind === "ok" ? (
         <HomePage />
@@ -80,6 +96,7 @@ export default function App() {
           <span className="text-xs">Đang khởi động backend...</span>
         </div>
       )}
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </AppShell>
   );
 }

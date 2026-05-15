@@ -138,3 +138,60 @@ export async function fileUrl(relPath: string): Promise<string> {
   const clean = relPath.startsWith("/") ? relPath.slice(1) : relPath;
   return `${base}/api/files/${clean}`;
 }
+
+// ── Config ──────────────────────────────────────────────────────────────────
+
+export interface LLMConfig {
+  api_key: string;
+  base_url: string;
+  model: string;
+}
+
+export interface GeminiImageConfig {
+  api_key: string;
+  model: string;
+}
+
+export interface ImageSubConfig {
+  inference_mode: "gemini" | "comfyui";
+  gemini: GeminiImageConfig;
+  default_workflow: string | null;
+  prompt_prefix: string;
+}
+
+export interface TTSLocalConfig {
+  voice: string;
+  speed: number;
+}
+
+export interface TTSSubConfig {
+  inference_mode: "local" | "comfyui";
+  local: TTSLocalConfig;
+}
+
+export interface AppConfig {
+  project_name: string;
+  llm: LLMConfig;
+  comfyui: {
+    comfyui_url: string;
+    runninghub_api_key: string | null;
+    tts: TTSSubConfig;
+    image: ImageSubConfig;
+    [key: string]: unknown;
+  };
+  template: {
+    default_template: string;
+  };
+}
+
+export async function getConfig(): Promise<AppConfig> {
+  const c = await getClient();
+  const r = await c.get<AppConfig>("/api/config");
+  return r.data;
+}
+
+export async function saveConfig(updates: Partial<AppConfig> | Record<string, unknown>): Promise<AppConfig> {
+  const c = await getClient();
+  const r = await c.post<AppConfig>("/api/config", { updates });
+  return r.data;
+}

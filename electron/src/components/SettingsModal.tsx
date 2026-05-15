@@ -1,0 +1,390 @@
+import { useEffect, useState } from "react";
+import { getConfig, saveConfig, type AppConfig } from "@/lib/api";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+type LoadState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "loaded"; config: AppConfig }
+  | { kind: "error"; message: string };
+
+type SaveState =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved" }
+  | { kind: "error"; message: string };
+
+export function SettingsModal({ open, onClose }: Props) {
+  const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
+  const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+
+  // Form fields
+  const [llmKey, setLlmKey] = useState("");
+  const [llmBaseUrl, setLlmBaseUrl] = useState("");
+  const [llmModel, setLlmModel] = useState("");
+  const [imageMode, setImageMode] = useState<"gemini" | "comfyui">("gemini");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("");
+  const [ttsVoice, setTtsVoice] = useState("");
+  const [ttsSpeed, setTtsSpeed] = useState(1.0);
+  const [promptPrefix, setPromptPrefix] = useState("");
+
+  // Load config every time the modal opens — keeps the form fresh if
+  // the user edits config.yaml externally.
+  useEffect(() => {
+    if (!open) return;
+    setLoadState({ kind: "loading" });
+    setSaveState({ kind: "idle" });
+    getConfig()
+      .then((cfg) => {
+        setLoadState({ kind: "loaded", config: cfg });
+        setLlmKey(cfg.llm?.api_key ?? "");
+        setLlmBaseUrl(cfg.llm?.base_url ?? "");
+        setLlmModel(cfg.llm?.model ?? "");
+        const img = cfg.comfyui?.image;
+        setImageMode((img?.inference_mode as "gemini" | "comfyui") ?? "gemini");
+        setGeminiKey(img?.gemini?.api_key ?? "");
+        setGeminiModel(img?.gemini?.model ?? "gemini-2.5-flash-image-preview");
+        setPromptPrefix(img?.prompt_prefix ?? "");
+        const tts = cfg.comfyui?.tts;
+        setTtsVoice(tts?.local?.voice ?? "en-US-AriaNeural");
+        setTtsSpeed(tts?.local?.speed ?? 1.0);
+      })
+      .catch((err) => {
+        setLoadState({
+          kind: "error",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
+  }, [open]);
+
+  async function onSave() {
+    setSaveState({ kind: "saving" });
+    try {
+      await saveConfig({
+        llm: {
+          api_key: llmKey,
+          base_url: llmBaseUrl,
+          model: llmModel,
+        },
+        comfyui: {
+          image: {
+            inference_mode: imageMode,
+            gemini: {
+              api_key: geminiKey,
+              model: geminiModel,
+            },
+            prompt_prefix: promptPrefix,
+          },
+          tts: {
+            local: {
+              voice: ttsVoice,
+              speed: ttsSpeed,
+            },
+          },
+        },
+      });
+      setSaveState({ kind: "saved" });
+      window.setTimeout(() => setSaveState({ kind: "idle" }), 2000);
+    } catch (err) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail || (err instanceof Error ? err.message : String(err));
+      setSaveState({ kind: "error", message: detail });
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded border border-neutral-800 bg-neutral-950 p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-neutral-100">Cấu hình</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs text-neutral-500 hover:text-neutral-200"
+          >
+            Đóng
+          </button>
+        </header>
+
+        {loadState.kind === "loading" ? (
+          <div className="py-8 text-center text-sm text-neutral-500">
+            Đang tải cấu hình...
+          </div>
+        ) : loadState.kind === "error" ? (
+          <div className="rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
+            Không load được config: {loadState.message}
+          </div>
+        ) : loadState.kind === "loaded" ? (
+          <div className="space-y-6">
+            <SectionLLM
+              apiKey={llmKey}
+              baseUrl={llmBaseUrl}
+              model={llmModel}
+              onApiKey={setLlmKey}
+              onBaseUrl={setLlmBaseUrl}
+              onModel={setLlmModel}
+            />
+
+            <SectionImage
+              mode={imageMode}
+              geminiKey={geminiKey}
+              geminiModel={geminiModel}
+              promptPrefix={promptPrefix}
+              onMode={setImageMode}
+              onGeminiKey={setGeminiKey}
+              onGeminiModel={setGeminiModel}
+              onPromptPrefix={setPromptPrefix}
+            />
+
+            <SectionTTS
+              voice={ttsVoice}
+              speed={ttsSpeed}
+              onVoice={setTtsVoice}
+              onSpeed={setTtsSpeed}
+            />
+
+            <footer className="flex items-center justify-end gap-3 border-t border-neutral-800 pt-4">
+              {saveState.kind === "saved" ? (
+                <span className="text-xs text-emerald-400">Đã lưu</span>
+              ) : saveState.kind === "error" ? (
+                <span
+                  className="text-xs text-red-400 max-w-md truncate"
+                  title={saveState.message}
+                >
+                  Lỗi: {saveState.message}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={saveState.kind === "saving"}
+                className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-emerald-50 hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {saveState.kind === "saving" ? "Đang lưu..." : "Lưu"}
+              </button>
+            </footer>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-2">
+        <h3 className="text-sm font-medium text-neutral-200">{title}</h3>
+        {hint ? <p className="mt-0.5 text-[11px] text-neutral-500">{hint}</p> : null}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-neutral-400">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-600 focus:outline-none"
+    />
+  );
+}
+
+function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className="rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-600 focus:outline-none"
+    />
+  );
+}
+
+function SectionLLM({
+  apiKey,
+  baseUrl,
+  model,
+  onApiKey,
+  onBaseUrl,
+  onModel,
+}: {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  onApiKey: (v: string) => void;
+  onBaseUrl: (v: string) => void;
+  onModel: (v: string) => void;
+}) {
+  return (
+    <Section
+      title="LLM"
+      hint="OpenAI-compat endpoint. Gemini key (Google AI Studio) free tier, dán key vào ô api_key."
+    >
+      <Field label="API Key">
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(e) => onApiKey(e.target.value)}
+          placeholder="AIza..."
+        />
+      </Field>
+      <Field label="Base URL">
+        <Input
+          type="text"
+          value={baseUrl}
+          onChange={(e) => onBaseUrl(e.target.value)}
+          placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
+        />
+      </Field>
+      <Field label="Model">
+        <Input
+          type="text"
+          value={model}
+          onChange={(e) => onModel(e.target.value)}
+          placeholder="gemini-2.5-flash"
+        />
+      </Field>
+    </Section>
+  );
+}
+
+function SectionImage({
+  mode,
+  geminiKey,
+  geminiModel,
+  promptPrefix,
+  onMode,
+  onGeminiKey,
+  onGeminiModel,
+  onPromptPrefix,
+}: {
+  mode: "gemini" | "comfyui";
+  geminiKey: string;
+  geminiModel: string;
+  promptPrefix: string;
+  onMode: (v: "gemini" | "comfyui") => void;
+  onGeminiKey: (v: string) => void;
+  onGeminiModel: (v: string) => void;
+  onPromptPrefix: (v: string) => void;
+}) {
+  return (
+    <Section
+      title="Image gen"
+      hint="Gemini direct = Nano Banana qua Google AI Studio (free tier). ComfyUI = workflow advanced."
+    >
+      <Field label="Mode">
+        <Select
+          value={mode}
+          onChange={(e) => onMode(e.target.value as "gemini" | "comfyui")}
+        >
+          <option value="gemini">Gemini direct (Nano Banana)</option>
+          <option value="comfyui">ComfyUI workflow</option>
+        </Select>
+      </Field>
+      {mode === "gemini" ? (
+        <>
+          <Field label="Gemini API Key">
+            <Input
+              type="password"
+              value={geminiKey}
+              onChange={(e) => onGeminiKey(e.target.value)}
+              placeholder="AIza... (cùng key Google AI Studio với LLM cũng được)"
+            />
+          </Field>
+          <Field label="Model">
+            <Input
+              type="text"
+              value={geminiModel}
+              onChange={(e) => onGeminiModel(e.target.value)}
+              placeholder="gemini-2.5-flash-image-preview"
+            />
+          </Field>
+        </>
+      ) : null}
+      <Field label="Prompt prefix (style)">
+        <Input
+          type="text"
+          value={promptPrefix}
+          onChange={(e) => onPromptPrefix(e.target.value)}
+          placeholder="Minimalist illustration, clean lines, vibrant colors"
+        />
+      </Field>
+    </Section>
+  );
+}
+
+function SectionTTS({
+  voice,
+  speed,
+  onVoice,
+  onSpeed,
+}: {
+  voice: string;
+  speed: number;
+  onVoice: (v: string) => void;
+  onSpeed: (v: number) => void;
+}) {
+  return (
+    <Section
+      title="Text-to-Speech"
+      hint="Edge TTS local (free, không cần key). Voice ID xem learn.microsoft.com/azure/ai-services/speech-service/language-support."
+    >
+      <Field label="Voice ID">
+        <Input
+          type="text"
+          value={voice}
+          onChange={(e) => onVoice(e.target.value)}
+          placeholder="en-US-AriaNeural / vi-VN-HoaiMyNeural / ..."
+        />
+      </Field>
+      <Field label={`Speed: ${speed.toFixed(2)}x`}>
+        <input
+          type="range"
+          min={0.5}
+          max={2.0}
+          step={0.05}
+          value={speed}
+          onChange={(e) => onSpeed(Number(e.target.value))}
+          className="accent-emerald-500"
+        />
+      </Field>
+    </Section>
+  );
+}
