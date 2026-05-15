@@ -30,6 +30,7 @@ from baru_api.routers import (
     resources_router,
     tasks_router,
     tts_router,
+    uploads_router,
     video_router,
 )
 from baru_api.routers.license import (
@@ -144,6 +145,7 @@ app.include_router(frame_router, prefix=api_config.api_prefix)
 app.include_router(config_router, prefix=api_config.api_prefix)
 app.include_router(license_router, prefix=api_config.api_prefix)
 app.include_router(history_router, prefix=api_config.api_prefix)
+app.include_router(uploads_router, prefix=api_config.api_prefix)
 
 
 @app.get("/")

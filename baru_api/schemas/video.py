@@ -14,16 +14,44 @@
 Video generation API schemas
 """
 
-from typing import Optional, Literal, Dict, Any
+from typing import Optional, Literal, Dict, Any, List
 from pydantic import BaseModel, Field
 
 
 class VideoGenerateRequest(BaseModel):
     """Video generation request"""
-    
+
+    # === Pipeline selection (drives which backend pipeline runs) ===
+    pipeline: Literal["standard", "asset_based", "custom"] = Field(
+        "standard",
+        description=(
+            "Which generation pipeline to use. 'standard' = text → AI script + "
+            "AI media. 'asset_based' = use user-uploaded media. 'custom' = "
+            "pipeline-specific."
+        ),
+    )
+
+    # === User-uploaded asset paths (populated by /api/uploads) ===
+    # Different pipelines / pipeline UI modes look at different fields.
+    # Pixelle's standard pipeline + i2v use ``assets``;
+    # digital_human uses ``character_assets``; action_transfer uses
+    # ``video_assets`` + ``image_assets``.
+    assets: Optional[List[str]] = Field(
+        None, description="Generic asset paths (Custom Media / i2v)"
+    )
+    character_assets: Optional[List[str]] = Field(
+        None, description="Character image paths (Digital Human)"
+    )
+    video_assets: Optional[List[str]] = Field(
+        None, description="Reference video paths (Action Transfer)"
+    )
+    image_assets: Optional[List[str]] = Field(
+        None, description="Character image paths (Action Transfer)"
+    )
+
     # === Input ===
     text: str = Field(..., description="Source text for video generation")
-    
+
     # === Processing Mode ===
     mode: Literal["generate", "fixed"] = Field(
         "generate",

@@ -97,8 +97,11 @@ export async function listBgm(): Promise<BGMInfo[]> {
 
 // ── Video generation ────────────────────────────────────────────────────────
 
+export type PipelineKind = "standard" | "asset_based" | "custom";
+
 export interface VideoGenerateRequest {
   text: string;
+  pipeline?: PipelineKind;
   mode?: "generate" | "fixed";
   n_scenes?: number;
   title?: string | null;
@@ -107,7 +110,14 @@ export interface VideoGenerateRequest {
   bgm_path?: string | null;
   bgm_volume?: number;
   tts_workflow?: string | null;
+  media_workflow?: string | null;
   video_fps?: number;
+  // Asset paths (set by file upload before invoking generate).
+  // Different advanced modes pick different keys.
+  assets?: string[];                // Custom Media / Image-to-Video
+  character_assets?: string[];      // Digital Human
+  video_assets?: string[];          // Action Transfer (reference video)
+  image_assets?: string[];          // Action Transfer (character image)
 }
 
 export interface VideoGenerateAsyncResponse {
@@ -125,6 +135,39 @@ export async function startGenerateAsync(
     req,
   );
   return r.data;
+}
+
+// ── Uploads ─────────────────────────────────────────────────────────────────
+
+export interface UploadResult {
+  paths: string[];
+  batch_id: string;
+}
+
+/** Upload one or more files to the backend; returns absolute disk
+ *  paths the generate request can reference (assets / character_assets
+ *  / video_assets / image_assets). */
+export async function uploadFiles(files: File[]): Promise<UploadResult> {
+  if (!files.length) throw new Error("Chưa chọn file nào để upload");
+  const base = await getBase();
+  const form = new FormData();
+  for (const f of files) {
+    form.append("files", f, f.name);
+  }
+  // Use bare fetch — axios serialises FormData oddly across versions.
+  const res = await fetch(`${base}/api/uploads`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let msg = `Upload thất bại (HTTP ${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.detail) msg = data.detail;
+    } catch { /* keep default */ }
+    throw new Error(msg);
+  }
+  return (await res.json()) as UploadResult;
 }
 
 // ── Tasks ───────────────────────────────────────────────────────────────────

@@ -249,6 +249,7 @@ async def generate_video_async(
             # Build video generation parameters
             video_params = {
                 "text": request_body.text,
+                "pipeline": request_body.pipeline,
                 "mode": request_body.mode,
                 "title": request_body.title,
                 "n_scenes": request_body.n_scenes,
@@ -266,6 +267,23 @@ async def generate_video_async(
                 "bgm_volume": request_body.bgm_volume,
                 "progress_callback": on_progress,
             }
+
+            # Forward asset paths to the pipeline. Different pipelines /
+            # advanced modes look at different keys — the asset_based
+            # pipeline reads ``assets``, digital human reads
+            # ``character_assets``, action transfer reads ``video_assets``
+            # + ``image_assets``. We just hand them straight to
+            # generate_video and let the picked pipeline pick the keys
+            # it cares about.
+            for asset_field in (
+                "assets",
+                "character_assets",
+                "video_assets",
+                "image_assets",
+            ):
+                val = getattr(request_body, asset_field, None)
+                if val:
+                    video_params[asset_field] = val
             
             # Add TTS workflow if specified
             if request_body.tts_workflow:
