@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { LicenseGate } from "@/components/LicenseGate";
 import { SettingsModal } from "@/components/SettingsModal";
 import { HomePage } from "@/pages/HomePage";
-import { ping } from "@/lib/api";
+import {
+  getLicenseStatus,
+  ping,
+  setLicenseInvalidHandler,
+} from "@/lib/api";
 
 type Backend =
   | { kind: "checking" }
   | { kind: "ok"; service: string; version: string }
   | { kind: "down"; reason: string };
 
+type Gate =
+  | { kind: "checking" }
+  | { kind: "configured"; label: string | null }
+  | { kind: "missing" };
+
 export default function App() {
   const [backend, setBackend] = useState<Backend>({ kind: "checking" });
+  const [gate, setGate] = useState<Gate>({ kind: "checking" });
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Ping FastAPI with retries. Cold-start Python can take 5-10s and
@@ -52,12 +63,61 @@ export default function App() {
     };
   }, []);
 
+  // Global 451 handler — backend's license middleware returns 451 when
+  // the saved license can't be verified. Drop back to LicenseGate so
+  // sếp knows the tool is locked.
+  useEffect(() => {
+    setLicenseInvalidHandler((status, _err) => {
+      console.warn("[license-gate] 451 from backend, status=", status);
+      setGate({ kind: "missing" });
+    });
+    return () => setLicenseInvalidHandler(null);
+  }, []);
+
+  // After backend comes up, check whether a license is configured.
+  useEffect(() => {
+    if (backend.kind !== "ok") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await getLicenseStatus();
+        if (cancelled) return;
+        setGate(
+          s.configured && s.last_status === "ok"
+            ? { kind: "configured", label: s.label ?? null }
+            : { kind: "missing" },
+        );
+      } catch {
+        // Endpoint failed — treat as missing so user can paste key.
+        if (cancelled) return;
+        setGate({ kind: "missing" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [backend.kind]);
+
+  const ready = backend.kind === "ok" && gate.kind === "configured";
+
+  // Full-canvas LicenseGate when backend is ok but no valid license.
+  // No AppShell wrapper — the gate is the entire screen.
+  if (backend.kind === "ok" && gate.kind === "missing") {
+    return (
+      <LicenseGate
+        onSuccess={(status) =>
+          setGate({ kind: "configured", label: status.label ?? null })
+        }
+      />
+    );
+  }
+
   return (
     <AppShell
       topbarLeft={<BackendPill state={backend} />}
       topbarRight={
         <>
-          {backend.kind === "ok" ? (
+          {ready ? (
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
@@ -71,7 +131,7 @@ export default function App() {
         </>
       }
     >
-      {backend.kind === "ok" ? (
+      {ready ? (
         <HomePage />
       ) : backend.kind === "down" ? (
         <div className="mx-auto max-w-xl px-6 py-10">

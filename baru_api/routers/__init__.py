@@ -25,6 +25,7 @@ from baru_api.routers.files import router as files_router
 from baru_api.routers.resources import router as resources_router
 from baru_api.routers.frame import router as frame_router
 from baru_api.routers.config import router as config_router
+from baru_api.routers.license import router as license_router
 
 __all__ = [
     "health_router",
@@ -38,5 +39,6 @@ __all__ = [
     "resources_router",
     "frame_router",
     "config_router",
+    "license_router",
 ]
 

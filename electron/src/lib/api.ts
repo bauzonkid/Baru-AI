@@ -1,7 +1,21 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosError } from "axios";
 
 let baseURL: string | null = null;
 let client: AxiosInstance | null = null;
+
+// Global callback fired when ANY backend call returns 451 — license-
+// gate middleware says the saved license isn't currently valid.
+// App.tsx subscribes via setLicenseInvalidHandler() so it can bounce
+// the user back to LicenseGate without each call site reimplementing it.
+type LicenseInvalidHandler = (
+  status: string,
+  error: string | null,
+) => void;
+let _licenseInvalidHandler: LicenseInvalidHandler | null = null;
+
+export function setLicenseInvalidHandler(h: LicenseInvalidHandler | null): void {
+  _licenseInvalidHandler = h;
+}
 
 async function getBase(): Promise<string> {
   if (baseURL) return baseURL;
@@ -17,6 +31,23 @@ async function getClient(): Promise<AxiosInstance> {
   if (client) return client;
   const base = await getBase();
   client = axios.create({ baseURL: base, timeout: 60_000 });
+  // 451 interceptor — fire the global handler, then let the original
+  // rejection propagate so per-call error UI still runs.
+  client.interceptors.response.use(
+    (r) => r,
+    (err: AxiosError) => {
+      if (err.response?.status === 451) {
+        const data = err.response.data as
+          | { license_status?: string; license_error?: string }
+          | undefined;
+        _licenseInvalidHandler?.(
+          data?.license_status || "unknown",
+          data?.license_error || null,
+        );
+      }
+      return Promise.reject(err);
+    },
+  );
   return client;
 }
 
@@ -202,5 +233,61 @@ export async function getConfig(): Promise<AppConfig> {
 export async function saveConfig(updates: Partial<AppConfig> | Record<string, unknown>): Promise<AppConfig> {
   const c = await getClient();
   const r = await c.post<AppConfig>("/api/config", { updates });
+  return r.data;
+}
+
+// ── License gate ────────────────────────────────────────────────────────────
+
+export interface LicenseStatus {
+  configured: boolean;
+  masked_key: string | null;
+  label: string | null;
+  last_status:
+    | "active"
+    | "revoked"
+    | "not_found"
+    | "device_mismatch"
+    | "unreachable"
+    | "ok"
+    | "unknown";
+  last_error: string | null;
+}
+
+export async function getLicenseStatus(): Promise<LicenseStatus> {
+  const c = await getClient();
+  const r = await c.get<LicenseStatus>("/api/license-status");
+  return r.data;
+}
+
+export async function setLicenseKey(key: string): Promise<LicenseStatus> {
+  const c = await getClient();
+  // Backend may return 400 with { detail: {status, error} } for revoked /
+  // not_found / device_mismatch. Surface the error message so the gate
+  // can render specific copy.
+  try {
+    const r = await c.post<LicenseStatus>("/api/license", { key });
+    return r.data;
+  } catch (err) {
+    const ax = err as AxiosError;
+    const detail = ax.response?.data as
+      | { detail?: { status?: string; error?: string } | string }
+      | undefined;
+    if (detail?.detail && typeof detail.detail === "object") {
+      const d = detail.detail;
+      throw new Error(d.error || d.status || "license rejected");
+    }
+    throw err;
+  }
+}
+
+export async function refreshLicense(): Promise<LicenseStatus> {
+  const c = await getClient();
+  const r = await c.post<LicenseStatus>("/api/license/refresh");
+  return r.data;
+}
+
+export async function deleteLicense(): Promise<LicenseStatus> {
+  const c = await getClient();
+  const r = await c.delete<LicenseStatus>("/api/license");
   return r.data;
 }
