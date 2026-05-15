@@ -251,6 +251,12 @@ export interface TTSSubConfig {
   local: TTSLocalConfig;
 }
 
+export interface BrandingConfig {
+  author: string;
+  describe: string;
+  brand: string;
+}
+
 export interface AppConfig {
   project_name: string;
   llm: LLMConfig;
@@ -263,6 +269,7 @@ export interface AppConfig {
   };
   template: {
     default_template: string;
+    branding: BrandingConfig;
   };
 }
 

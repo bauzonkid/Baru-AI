@@ -35,6 +35,9 @@ export function SettingsModal({ open, onClose }: Props) {
   const [ttsVoice, setTtsVoice] = useState("");
   const [ttsSpeed, setTtsSpeed] = useState(1.0);
   const [promptPrefix, setPromptPrefix] = useState("");
+  const [brandAuthor, setBrandAuthor] = useState("");
+  const [brandDescribe, setBrandDescribe] = useState("");
+  const [brandBrand, setBrandBrand] = useState("");
 
   // Load config every time the modal opens — keeps the form fresh if
   // the user edits config.yaml externally.
@@ -59,6 +62,10 @@ export function SettingsModal({ open, onClose }: Props) {
         const tts = cfg.comfyui?.tts;
         setTtsVoice(tts?.local?.voice ?? "en-US-AriaNeural");
         setTtsSpeed(tts?.local?.speed ?? 1.0);
+        const brand = cfg.template?.branding;
+        setBrandAuthor(brand?.author ?? "");
+        setBrandDescribe(brand?.describe ?? "");
+        setBrandBrand(brand?.brand ?? "");
       })
       .catch((err) => {
         setLoadState({
@@ -96,6 +103,13 @@ export function SettingsModal({ open, onClose }: Props) {
               voice: ttsVoice,
               speed: ttsSpeed,
             },
+          },
+        },
+        template: {
+          branding: {
+            author: brandAuthor,
+            describe: brandDescribe,
+            brand: brandBrand,
           },
         },
       });
@@ -172,6 +186,15 @@ export function SettingsModal({ open, onClose }: Props) {
               speed={ttsSpeed}
               onVoice={setTtsVoice}
               onSpeed={setTtsSpeed}
+            />
+
+            <SectionBranding
+              author={brandAuthor}
+              describe={brandDescribe}
+              brand={brandBrand}
+              onAuthor={setBrandAuthor}
+              onDescribe={setBrandDescribe}
+              onBrand={setBrandBrand}
             />
 
             <footer className="flex items-center justify-end gap-3 border-t border-neutral-800 pt-4">
@@ -554,6 +577,54 @@ function SectionTTS({
           value={speed}
           onChange={(e) => onSpeed(Number(e.target.value))}
           className="accent-emerald-500"
+        />
+      </Field>
+    </Section>
+  );
+}
+
+function SectionBranding({
+  author,
+  describe,
+  brand,
+  onAuthor,
+  onDescribe,
+  onBrand,
+}: {
+  author: string;
+  describe: string;
+  brand: string;
+  onAuthor: (v: string) => void;
+  onDescribe: (v: string) => void;
+  onBrand: (v: string) => void;
+}) {
+  return (
+    <Section
+      title="Thương hiệu (footer video)"
+      hint="Thay 3 dòng @Pixelle.AI / Open Source Omnimodal AI Creative Agent / Pixelle-Video ở cuối video. Để trống = giữ mặc định của template."
+    >
+      <Field label="Tên kênh (góc dưới trái)">
+        <Input
+          type="text"
+          value={author}
+          onChange={(e) => onAuthor(e.target.value)}
+          placeholder="VD: @yohomin hoặc tên kênh YouTube"
+        />
+      </Field>
+      <Field label="Mô tả (dòng phụ)">
+        <Input
+          type="text"
+          value={describe}
+          onChange={(e) => onDescribe(e.target.value)}
+          placeholder="VD: AI Video Studio (để trống = ẩn)"
+        />
+      </Field>
+      <Field label="Brand (góc dưới phải)">
+        <Input
+          type="text"
+          value={brand}
+          onChange={(e) => onBrand(e.target.value)}
+          placeholder="VD: Baru-Pixelle hoặc tên brand riêng"
         />
       </Field>
     </Section>

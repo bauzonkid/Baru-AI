@@ -280,10 +280,23 @@ async def generate_video_async(
                 logger.warning("voice_id parameter is deprecated, please use tts_workflow instead")
                 video_params["voice_id"] = request_body.voice_id
             
-            # Add custom template parameters if specified
-            if request_body.template_params:
-                video_params["template_params"] = request_body.template_params
-            
+            # Branding: pull author/describe/brand from config.template.branding
+            # and merge into template_params. Request-level template_params
+            # win — sếp can still override per-render. Empty strings are
+            # filtered so the template's built-in default keeps showing.
+            from baru_pixelle.config import config_manager
+            branding = config_manager.config.template.branding
+            tpl_params = dict(request_body.template_params or {})
+            for k, v in (
+                ("author", branding.author),
+                ("describe", branding.describe),
+                ("brand", branding.brand),
+            ):
+                if k not in tpl_params and v and v.strip():
+                    tpl_params[k] = v.strip()
+            if tpl_params:
+                video_params["template_params"] = tpl_params
+
             result = await pixelle_video.generate_video(**video_params)
             
             # Get file size

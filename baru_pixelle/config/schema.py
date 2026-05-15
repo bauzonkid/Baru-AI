@@ -108,11 +108,28 @@ class ComfyUIConfig(BaseModel):
     video: VideoSubConfig = Field(default_factory=VideoSubConfig, description="Video-specific configuration")
 
 
+class BrandingConfig(BaseModel):
+    """Branding placeholders injected into the HTML template footer.
+
+    Templates declare them as ``{{author=...}}``, ``{{describe=...}}``,
+    ``{{brand=...}}``. Empty strings keep the template default (the
+    upstream Pixelle.AI signature); set them to whatever sếp wants
+    in the video's footer.
+    """
+    author: str = Field(default="", description="@handle in the footer")
+    describe: str = Field(default="", description="One-line description under the author")
+    brand: str = Field(default="", description="Brand text in the right corner")
+
+
 class TemplateConfig(BaseModel):
     """Template configuration"""
     default_template: str = Field(
         default="1080x1920/default.html",
         description="Default frame template path"
+    )
+    branding: BrandingConfig = Field(
+        default_factory=BrandingConfig,
+        description="Footer branding (author / describe / brand)",
     )
 
 
