@@ -25,7 +25,7 @@ from loguru import logger
 
 from baru_pixelle.services.comfy_base_service import ComfyBaseService
 from baru_pixelle.services.gemini_image import generate_image_gemini, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
-from baru_pixelle.services.imagen_yohomin import generate_image_imagen
+from baru_pixelle.services.imagen_yohomin import generate_image_imagen, ImagenQuotaExceeded
 from baru_pixelle.models.media import MediaResult
 
 
@@ -207,13 +207,39 @@ class MediaService(ComfyBaseService):
         if media_type == "image" and mode == "imagen":
             imagen_cfg = self.config.get("imagen", {}) or {}
             license_key = imagen_cfg.get("license_key") or os.environ.get("BARU_LICENSE_KEY", "")
-            return await generate_image_imagen(
-                prompt=prompt,
-                license_key=license_key,
-                base_url=imagen_cfg.get("base_url") or "https://yohomin.com",
-                aspect_ratio=imagen_cfg.get("aspect_ratio") or "9:16",
-                output_path=output_path,
-            )
+            try:
+                return await generate_image_imagen(
+                    prompt=prompt,
+                    license_key=license_key,
+                    base_url=imagen_cfg.get("base_url") or "https://yohomin.com",
+                    aspect_ratio=imagen_cfg.get("aspect_ratio") or "9:16",
+                    output_path=output_path,
+                )
+            except ImagenQuotaExceeded as exc:
+                # Vertex daily quota burned. Fall back to Nano Banana via
+                # AI Studio (free tier ~100/day, separate quota pool) if
+                # the user provided an AI Studio key. Otherwise re-raise
+                # so the user sees the quota message + can switch tomorrow.
+                gemini_cfg = self.config.get("gemini", {}) or {}
+                fallback_key = gemini_cfg.get("api_key") or os.environ.get("GEMINI_API_KEY", "")
+                if not fallback_key:
+                    logger.error(
+                        "Imagen quota exhausted and no Gemini AI Studio "
+                        "key configured for fallback. Paste a key into "
+                        "Settings → Image gen → Gemini API Key to enable "
+                        "automatic fallback next time."
+                    )
+                    raise
+                logger.warning(
+                    f"Imagen quota exhausted: {exc}. Falling back to "
+                    f"Gemini direct (Nano Banana via AI Studio)."
+                )
+                return await generate_image_gemini(
+                    prompt=prompt,
+                    api_key=fallback_key,
+                    model=gemini_cfg.get("model") or GEMINI_DEFAULT_MODEL,
+                    output_path=output_path,
+                )
         if media_type == "image" and mode == "gemini":
             gemini_cfg = self.config.get("gemini", {}) or {}
             api_key = gemini_cfg.get("api_key") or os.environ.get("GEMINI_API_KEY", "")

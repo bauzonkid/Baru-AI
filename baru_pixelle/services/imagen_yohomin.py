@@ -32,6 +32,13 @@ from baru_pixelle.models.media import MediaResult
 _DEFAULT_BASE_URL = "https://yohomin.com"
 _DEFAULT_TIMEOUT_S = 200.0  # Imagen 3 renders take 60-90s, allow headroom.
 
+
+class ImagenQuotaExceeded(RuntimeError):
+    """Vertex AI quota for Imagen 3 is exhausted. Raised so MediaService
+    can fall back to Gemini direct (Nano Banana via AI Studio) when the
+    user has an AI Studio key configured.
+    """
+
 # Imagen 3 blocks photoreal generation of anyone reading as a minor.
 # Even with the IMAGEN SAFETY rule in the LLM prompt template
 # (baru_pixelle/prompts/image_generation.py), the LLM occasionally lets
@@ -128,6 +135,14 @@ async def generate_image_imagen(
             err = (r.json() or {}).get("error") or r.text[:300]
         except Exception:
             err = r.text[:300]
+        # Vertex AI's quota signal — "Quota exceeded for
+        # aiplatform.googleapis.com/online_prediction_requests_per_base_model"
+        # — surfaces as a 500 with that message in ``error``. Surface as
+        # a typed exception so MediaService can route to Gemini direct.
+        if "quota" in err.lower() or "rate" in err.lower():
+            raise ImagenQuotaExceeded(
+                f"Yohomin /api/imagen/generate {r.status_code}: {err}"
+            )
         raise RuntimeError(f"Yohomin /api/imagen/generate {r.status_code}: {err}")
 
     data = r.json()
