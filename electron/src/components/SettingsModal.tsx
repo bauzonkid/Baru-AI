@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { getConfig, saveConfig, type AppConfig, type ImageMode } from "@/lib/api";
+import {
+  getConfig,
+  getComfyHealth,
+  saveConfig,
+  type AppConfig,
+  type ComfyHealth,
+  type ImageMode,
+} from "@/lib/api";
 
 interface Props {
   open: boolean;
@@ -34,6 +41,7 @@ export function SettingsModal({ open, onClose }: Props) {
   const [geminiModel, setGeminiModel] = useState("");
   const [ttsVoice, setTtsVoice] = useState("");
   const [ttsSpeed, setTtsSpeed] = useState(1.0);
+  const [comfyUrl, setComfyUrl] = useState("http://127.0.0.1:8188");
   const [promptPrefix, setPromptPrefix] = useState("");
   const [brandAuthor, setBrandAuthor] = useState("");
   const [brandDescribe, setBrandDescribe] = useState("");
@@ -62,6 +70,10 @@ export function SettingsModal({ open, onClose }: Props) {
         const tts = cfg.comfyui?.tts;
         setTtsVoice(tts?.local?.voice ?? "en-US-AriaNeural");
         setTtsSpeed(tts?.local?.speed ?? 1.0);
+        setComfyUrl(
+          (cfg.comfyui as { comfyui_url?: string } | undefined)?.comfyui_url ??
+            "http://127.0.0.1:8188",
+        );
         const brand = cfg.template?.branding;
         setBrandAuthor(brand?.author ?? "");
         setBrandDescribe(brand?.describe ?? "");
@@ -85,6 +97,7 @@ export function SettingsModal({ open, onClose }: Props) {
           model: llmModel,
         },
         comfyui: {
+          comfyui_url: comfyUrl,
           image: {
             inference_mode: imageMode,
             imagen: {
@@ -187,6 +200,8 @@ export function SettingsModal({ open, onClose }: Props) {
               onVoice={setTtsVoice}
               onSpeed={setTtsSpeed}
             />
+
+            <SectionComfyUI url={comfyUrl} onUrl={setComfyUrl} />
 
             <SectionBranding
               author={brandAuthor}
@@ -579,6 +594,74 @@ function SectionTTS({
           className="accent-emerald-500"
         />
       </Field>
+    </Section>
+  );
+}
+
+function SectionComfyUI({
+  url,
+  onUrl,
+}: {
+  url: string;
+  onUrl: (v: string) => void;
+}) {
+  const [probe, setProbe] = useState<
+    | { kind: "idle" }
+    | { kind: "testing" }
+    | { kind: "result"; health: ComfyHealth }
+  >({ kind: "idle" });
+
+  async function test() {
+    setProbe({ kind: "testing" });
+    try {
+      const health = await getComfyHealth(url.trim());
+      setProbe({ kind: "result", health });
+    } catch (err) {
+      setProbe({
+        kind: "result",
+        health: {
+          online: false,
+          url,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
+    }
+  }
+
+  return (
+    <Section
+      title="ComfyUI (cho Image-to-Video)"
+      hint="Cần để chạy mode Image-to-Video. Tải ComfyUI portable từ github.com/comfyanonymous/ComfyUI, chạy nền, paste URL ở đây. Slideshow + Custom Media KHÔNG cần ComfyUI."
+    >
+      <Field label="ComfyUI URL">
+        <Input
+          type="text"
+          value={url}
+          onChange={(e) => onUrl(e.target.value)}
+          placeholder="http://127.0.0.1:8188"
+        />
+      </Field>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={test}
+          disabled={probe.kind === "testing" || !url.trim()}
+          className="rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-200 hover:bg-neutral-800 disabled:opacity-50"
+        >
+          {probe.kind === "testing" ? "Đang test..." : "Test kết nối"}
+        </button>
+        {probe.kind === "result" ? (
+          probe.health.online ? (
+            <span className="text-xs text-emerald-400">
+              ✓ Online tại {probe.health.url}
+            </span>
+          ) : (
+            <span className="text-xs text-red-400">
+              ✗ {probe.health.error ?? "Offline"}
+            </span>
+          )
+        ) : null}
+      </div>
     </Section>
   );
 }

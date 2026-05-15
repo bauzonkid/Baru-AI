@@ -18,6 +18,7 @@ from baru_api.config import api_config
 from baru_api.dependencies import shutdown_pixelle_video
 from baru_api.tasks import task_manager
 from baru_api.routers import (
+    comfyui_router,
     config_router,
     content_router,
     files_router,
@@ -146,6 +147,7 @@ app.include_router(config_router, prefix=api_config.api_prefix)
 app.include_router(license_router, prefix=api_config.api_prefix)
 app.include_router(history_router, prefix=api_config.api_prefix)
 app.include_router(uploads_router, prefix=api_config.api_prefix)
+app.include_router(comfyui_router, prefix=api_config.api_prefix)
 
 
 @app.get("/")

@@ -5,6 +5,8 @@ import {
   startGenerateAsync,
   getTask,
   uploadFiles,
+  getComfyHealth,
+  type ComfyHealth,
   type TemplateInfo,
   type BGMInfo,
   type Task,
@@ -23,9 +25,7 @@ type ScriptMode = "ai" | "fixed";
 type GenMode =
   | "slideshow"
   | "custom_media"
-  | "i2v"
-  | "digital_human"
-  | "action_transfer";
+  | "i2v";
 
 interface ModeMeta {
   key: GenMode;
@@ -54,21 +54,7 @@ const MODES: ModeMeta[] = [
     key: "i2v",
     icon: "🎬",
     label: "Image-to-Video",
-    hint: "Upload ảnh → motion video qua WAN 2.1 / LTX. Cần ComfyUI hoặc RunningHub.",
-    requiresComfy: true,
-  },
-  {
-    key: "digital_human",
-    icon: "🤖",
-    label: "Digital Human",
-    hint: "Character ảnh + script → video talking head. Cần ComfyUI.",
-    requiresComfy: true,
-  },
-  {
-    key: "action_transfer",
-    icon: "💃",
-    label: "Action Transfer",
-    hint: "Reference video + character ảnh → character làm theo. Cần ComfyUI.",
+    hint: "Upload ảnh → motion video qua WAN 2.1. Cần ComfyUI local.",
     requiresComfy: true,
   },
 ];
@@ -888,6 +874,12 @@ function CustomMediaTab({
   );
 }
 
+// Image-to-Video tab — the only Advanced mode currently shipped.
+// Digital Human + Action Transfer were removed because Pixelle.AI upstream
+// doesn't provide selfhost workflows for them, and Path C (user-installed
+// ComfyUI) is the only distribution model we support.
+const I2V_WORKFLOW = "selfhost/video_wan2.1_fusionx.json";
+
 function AdvancedTab({
   mode,
   flow,
@@ -899,71 +891,57 @@ function AdvancedTab({
   onStart: (req: VideoGenerateRequest) => Promise<void>;
   onReset: () => void;
 }) {
-  // Mode-specific defaults for the 3 ComfyUI-required modes.
   const meta = MODES.find((m) => m.key === mode);
-  const presets: Record<
-    "i2v" | "digital_human" | "action_transfer",
-    { accept: string; placeholder: string; workflow: string }
-  > = {
-    i2v: {
-      accept: "image/*",
-      placeholder: "Chọn ảnh nguồn (1 ảnh)",
-      workflow: "runninghub/i2v_LTX2.json",
-    },
-    digital_human: {
-      accept: "image/*",
-      placeholder: "Chọn ảnh character (1 ảnh)",
-      workflow: "runninghub/digital_image.json",
-    },
-    action_transfer: {
-      accept: "video/*,image/*",
-      placeholder: "Chọn reference video + character ảnh",
-      workflow: "runninghub/af_scail.json",
-    },
-  };
-  const preset =
-    mode === "i2v" || mode === "digital_human" || mode === "action_transfer"
-      ? presets[mode]
-      : null;
 
   const [topic, setTopic] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  // Probe ComfyUI on mount + every time the user comes back to this tab,
+  // so the badge reflects reality without forcing a page reload after
+  // they start ComfyUI from the system tray.
+  const [health, setHealth] = useState<ComfyHealth | null>(null);
+  const [probing, setProbing] = useState(false);
+
+  async function probeComfy() {
+    setProbing(true);
+    try {
+      const h = await getComfyHealth();
+      setHealth(h);
+    } catch {
+      setHealth({ online: false, url: "", error: "Backend không trả lời" });
+    } finally {
+      setProbing(false);
+    }
+  }
+
+  useEffect(() => {
+    if (mode === "i2v") probeComfy();
+  }, [mode]);
+
   const isBusy = uploading || flow.kind === "starting" || flow.kind === "running";
+  const canSubmit = !isBusy && files.length > 0 && health?.online === true;
 
   async function submit() {
-    if (!preset) return;
     if (files.length === 0) {
-      alert("Cần chọn ít nhất 1 file");
+      alert("Cần chọn ít nhất 1 ảnh");
+      return;
+    }
+    if (!health?.online) {
+      alert("ComfyUI chưa online. Mở Cấu hình → ComfyUI để kiểm tra URL.");
       return;
     }
     setUploading(true);
     try {
       const uploaded = await uploadFiles(files);
       setUploading(false);
-
-      const req: VideoGenerateRequest = {
+      await onStart({
         pipeline: "standard",
         text: topic.trim() || "Generated video",
         mode: topic.trim() ? "generate" : "fixed",
         frame_template: DEFAULT_TEMPLATE_KEY,
-        media_workflow: preset.workflow,
-      };
-      if (mode === "digital_human") req.character_assets = uploaded.paths;
-      else if (mode === "action_transfer") {
-        // First file = video reference, rest = character images.
-        const vids = uploaded.paths.filter((p) =>
-          /\.(mp4|mov|webm|mkv)$/i.test(p),
-        );
-        const imgs = uploaded.paths.filter((p) =>
-          /\.(jpe?g|png|webp)$/i.test(p),
-        );
-        req.video_assets = vids;
-        req.image_assets = imgs;
-      } else {
-        req.assets = uploaded.paths;
-      }
-      await onStart(req);
+        media_workflow: I2V_WORKFLOW,
+        assets: uploaded.paths,
+      });
     } catch (err) {
       setUploading(false);
       alert(err instanceof Error ? err.message : String(err));
@@ -972,39 +950,37 @@ function AdvancedTab({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card title={meta?.label ?? "Advanced"} icon={meta?.icon ?? "🎬"}>
-        <div className="rounded-baru-md border border-baru-warn/40 bg-baru-warn/5 p-3 text-[11px] text-baru-dim">
-          Chế độ này cần <b>ComfyUI</b> local hoặc <b>RunningHub</b> API key.
-          Mở Cấu hình → ComfyUI để paste URL/key. Nếu chưa, render sẽ fail
-          với lỗi "RunningHub API key required" hoặc "ComfyUI URL down".
-        </div>
+      <Card title={meta?.label ?? "Image-to-Video"} icon={meta?.icon ?? "🎬"}>
+        <ComfyHealthBadge
+          health={health}
+          probing={probing}
+          onRefresh={probeComfy}
+        />
         <Field
           label="Chủ đề / caption (tuỳ chọn)"
-          hint="Để AI viết script. Để trống = chỉ dùng media + workflow defaults."
+          hint="Để AI viết script kèm motion. Để trống = chỉ dùng ảnh + workflow defaults."
         >
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="VD: con mèo nhảy múa"
+            placeholder="VD: con mèo nhảy múa, mây trôi qua núi"
             rows={2}
             disabled={isBusy}
             className="w-full resize-none rounded-baru-md border border-baru-edge bg-baru-panel-2 px-3.5 py-2.5 text-sm text-baru-fg placeholder:text-baru-muted focus:border-baru-violet/60 focus:outline-none focus:ring-1 focus:ring-baru-violet/40 disabled:opacity-50"
           />
         </Field>
-        {preset ? (
-          <Field
-            label={`Media (${files.length})`}
-            hint={`Workflow: ${preset.workflow}`}
-          >
-            <FilePicker
-              accept={preset.accept}
-              files={files}
-              onChange={setFiles}
-              disabled={isBusy}
-              placeholder={preset.placeholder}
-            />
-          </Field>
-        ) : null}
+        <Field
+          label={`Ảnh nguồn (${files.length})`}
+          hint={`Workflow: ${I2V_WORKFLOW}`}
+        >
+          <FilePicker
+            accept="image/*"
+            files={files}
+            onChange={setFiles}
+            disabled={isBusy}
+            placeholder="Chọn ảnh nguồn (1 ảnh)"
+          />
+        </Field>
       </Card>
       <Card title="Tạo video" icon="✨" highlighted>
         {flow.kind === "running" ? (
@@ -1012,21 +988,25 @@ function AdvancedTab({
         ) : (
           <>
             <p className="text-xs text-baru-dim">
-              {files.length} file sẽ được upload + gửi tới workflow{" "}
-              <code className="font-mono text-baru-fg">{preset?.workflow}</code>.
-              Render qua ComfyUI/RunningHub — có thể tốn 30s–5 phút tuỳ workflow.
+              {files.length} ảnh sẽ được gửi qua ComfyUI tại{" "}
+              <code className="font-mono text-baru-fg">
+                {health?.url || "chưa cấu hình"}
+              </code>
+              . WAN 2.1 render khoảng 1–5 phút/clip tuỳ GPU.
             </p>
             <button
               type="button"
               onClick={submit}
-              disabled={isBusy || files.length === 0}
+              disabled={!canSubmit}
               className="w-full rounded-baru-md bg-baru-violet px-4 py-3 text-sm font-medium text-white shadow-violet-glow transition hover:bg-baru-violet-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {uploading
                 ? "Đang upload..."
                 : flow.kind === "starting"
                   ? "Đang gửi..."
-                  : "🎬  Tạo video"}
+                  : !health?.online
+                    ? "ComfyUI offline — bật ComfyUI trước"
+                    : "🎬  Tạo video"}
             </button>
             {flow.kind === "error" ? (
               <ErrorInline message={flow.message} onReset={onReset} />
@@ -1034,6 +1014,64 @@ function AdvancedTab({
           </>
         )}
       </Card>
+    </div>
+  );
+}
+
+function ComfyHealthBadge({
+  health,
+  probing,
+  onRefresh,
+}: {
+  health: ComfyHealth | null;
+  probing: boolean;
+  onRefresh: () => void;
+}) {
+  if (probing && !health) {
+    return (
+      <div className="rounded-baru-md border border-baru-edge bg-baru-panel-2 p-3 text-[11px] text-baru-dim">
+        Đang kiểm tra ComfyUI...
+      </div>
+    );
+  }
+  if (health?.online) {
+    return (
+      <div className="flex items-center justify-between rounded-baru-md border border-emerald-700/40 bg-emerald-900/20 p-3 text-[11px] text-emerald-300">
+        <span>
+          ✓ ComfyUI online tại{" "}
+          <code className="font-mono">{health.url}</code>
+        </span>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="text-emerald-200 underline hover:no-underline"
+        >
+          Kiểm tra lại
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-baru-md border border-baru-warn/40 bg-baru-warn/5 p-3 text-[11px] text-baru-dim">
+      <div className="mb-1.5 font-medium text-baru-warn">
+        ✗ ComfyUI offline
+      </div>
+      <div className="space-y-1">
+        <div>{health?.error ?? "Chưa cấu hình URL"}</div>
+        <div>
+          Cần cài ComfyUI: tải tại{" "}
+          <span className="font-mono">github.com/comfyanonymous/ComfyUI</span>,
+          chạy nền, mở <b>Cấu hình → ComfyUI</b> dán URL (mặc định{" "}
+          <span className="font-mono">http://127.0.0.1:8188</span>).
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="mt-1 text-baru-violet underline hover:no-underline"
+        >
+          Kiểm tra lại
+        </button>
+      </div>
     </div>
   );
 }

@@ -388,3 +388,19 @@ export async function deleteLicense(): Promise<LicenseStatus> {
   const r = await c.delete<LicenseStatus>("/api/license");
   return r.data;
 }
+
+// ── ComfyUI health ──────────────────────────────────────────────────────────
+
+export interface ComfyHealth {
+  online: boolean;
+  url: string;
+  error?: string | null;
+}
+
+export async function getComfyHealth(url?: string): Promise<ComfyHealth> {
+  const c = await getClient();
+  const r = await c.get<ComfyHealth>("/api/comfyui/health", {
+    params: url ? { url } : undefined,
+  });
+  return r.data;
+}
