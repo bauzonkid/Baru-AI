@@ -149,8 +149,9 @@ export function LicenseGate({ onSuccess }: LicenseGateProps) {
             <div className="flex items-start justify-center gap-2 text-baru-dim/70">
               <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
               <p className="text-left text-[12px] leading-relaxed">
-                Liên hệ admin nếu chưa có key. Key được lưu trên máy này —
-                không cần nhập lại. Key này dùng được cho cả Baru-YTB.
+                Liên hệ admin để xin license cho Baru-Pixelle. Key được lưu
+                trên máy này — không cần nhập lại. Mỗi tool (Baru-YTB,
+                Baru-Manga, Baru-Pixelle) dùng license riêng.
               </p>
             </div>
             <div className="flex items-center justify-center gap-6 pt-1">

@@ -151,7 +151,7 @@ def _fetch_license_status(
     """
     qs = urllib.parse.urlencode({"device_id": _device_id()})
     url = (
-        f"{LICENSE_SERVER_BASE}/api/baru/license/"
+        f"{LICENSE_SERVER_BASE}/api/baru-pixelle/license/"
         f"{urllib.parse.quote(key)}?{qs}"
     )
     req = urllib.request.Request(
