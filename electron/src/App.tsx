@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { HomePage } from "@/pages/HomePage";
 import { ping } from "@/lib/api";
 
 type Backend =
@@ -54,14 +55,31 @@ export default function App() {
       topbarLeft={<BackendPill state={backend} />}
       topbarRight={<UpdateButton />}
     >
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-        <div className="text-sm text-baru-dim">
-          Phase 1 skeleton — UI Pixelle sẽ build ở Phase 4
+      {backend.kind === "ok" ? (
+        <HomePage />
+      ) : backend.kind === "down" ? (
+        <div className="mx-auto max-w-xl px-6 py-10">
+          <div className="rounded-lg border border-red-900 bg-red-950/40 p-5 text-sm">
+            <div className="font-medium text-red-200">
+              Không kết nối được FastAPI
+            </div>
+            <div className="mt-2 text-red-200/80">{backend.reason}</div>
+            <div className="mt-3 text-xs text-red-200/60">
+              Backend được Electron tự spawn lúc app launch. Nếu lỗi này còn,
+              mở DevTools (Ctrl+Shift+I) xem network log, hoặc chạy{" "}
+              <code className="rounded bg-red-900/40 px-1">
+                python -m uvicorn baru_api.main:app --port 5000
+              </code>{" "}
+              tay để xem stack trace.
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-baru-muted">
-          Backend status được hiển thị ở góc trên trái
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-neutral-500">
+          <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-neutral-700 border-t-neutral-400" />
+          <span className="text-xs">Đang khởi động backend...</span>
         </div>
-      </div>
+      )}
     </AppShell>
   );
 }
