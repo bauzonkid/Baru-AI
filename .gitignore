@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv-cache/
+build/
+dist/
+
+# Node / Electron
+node_modules/
+electron/dist/
+electron/dist-electron/
+electron/release/
+electron/build/python/
+electron/build/python_narration/
+electron/build/ffmpeg/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# User data
+.env
+config.yaml

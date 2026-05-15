@@ -1,0 +1,129 @@
+{
+  "name": "baru-pixelle-electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron + React desktop UI for Baru-Pixelle",
+  "author": "yohomin <bauzonkid@yohomin.com>",
+  "main": "dist-electron/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "bundle:python": "node scripts/bundle-python.mjs",
+    "bundle:python:clean": "node scripts/bundle-python.mjs --clean",
+    "bundle:ffmpeg": "node scripts/bundle-ffmpeg.mjs",
+    "bundle:ffmpeg:clean": "node scripts/bundle-ffmpeg.mjs --clean",
+    "dist": "npm run build && npm run bundle:python && npm run bundle:ffmpeg && electron-builder --win",
+    "publish": "npm run build && npm run bundle:python && npm run bundle:ffmpeg && electron-builder --win --publish always",
+    "release:patch": "node scripts/release.mjs patch",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "electron-updater": "^6.3.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vite-plugin-electron": "^0.28.8",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "appId": "com.yohomin.baru-pixelle",
+    "productName": "Baru-Pixelle",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "build/python",
+        "to": "python",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.pyo",
+          "!Lib/site-packages/pip/_vendor/**/*.exe",
+          "!**/tests/**",
+          "!**/test/**"
+        ]
+      },
+      {
+        "from": "build/ffmpeg",
+        "to": "ffmpeg",
+        "filter": [
+          "ffmpeg.exe",
+          "ffprobe.exe"
+        ]
+      },
+      {
+        "from": "../baru_api",
+        "to": "baru_api",
+        "filter": [
+          "**/*.py",
+          "!**/__pycache__/**"
+        ]
+      },
+      {
+        "from": "../baru_pixelle",
+        "to": "baru_pixelle",
+        "filter": [
+          "**/*.py",
+          "**/*.json",
+          "**/*.html",
+          "**/*.md",
+          "!**/__pycache__/**"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": "x64"
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Baru-Pixelle",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "bauzonkid",
+        "repo": "Baru-Pixelle",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
