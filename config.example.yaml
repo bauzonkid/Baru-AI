@@ -5,14 +5,17 @@
 project_name: Baru-Pixelle
 
 # ==================== LLM Configuration ====================
-# Any OpenAI SDK-compatible endpoint. For Gemini, use Google AI Studio's
-# OpenAI-compat endpoint — free tier, get key at https://aistudio.google.com/apikey
+# Default: 9router (Yohomin's local proxy) — multi-account Gemini rotation,
+# auto-fallback chain, RTK token saver. Same key/url Baru-YTB uses.
+# Switch to any other OpenAI-compat preset by replacing base_url + key.
 llm:
-  api_key: ""
-  base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  api_key: "sk-yohomin-9router-bypass"
+  base_url: "https://yohomin.com/v1"
   model: "gemini-2.5-flash"
 
 # Other presets:
+# 9router local:   base_url: "http://localhost:20128/v1"                          api_key: "sk-yohomin-9router-bypass"
+# Gemini direct:   base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"  api_key: "<AI Studio key>"  model: "gemini-2.5-flash"
 # Qwen Max:        base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  model: "qwen-max"
 # OpenAI GPT-4o:   base_url: "https://api.openai.com/v1"                          model: "gpt-4o"
 # DeepSeek:        base_url: "https://api.deepseek.com"                           model: "deepseek-chat"

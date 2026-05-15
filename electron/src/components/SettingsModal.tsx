@@ -237,6 +237,62 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
+const LLM_PRESETS: Array<{
+  id: string;
+  label: string;
+  base_url: string;
+  model: string;
+  key_placeholder: string;
+}> = [
+  {
+    id: "9router-cloud",
+    label: "9router (Yohomin cloud)",
+    base_url: "https://yohomin.com/v1",
+    model: "gemini-2.5-flash",
+    key_placeholder: "sk-yohomin-9router-bypass",
+  },
+  {
+    id: "9router-local",
+    label: "9router (local proxy)",
+    base_url: "http://localhost:20128/v1",
+    model: "gemini-2.5-flash",
+    key_placeholder: "sk-yohomin-9router-bypass",
+  },
+  {
+    id: "gemini-direct",
+    label: "Gemini direct (AI Studio)",
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    model: "gemini-2.5-flash",
+    key_placeholder: "AIza... (Google AI Studio key)",
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    base_url: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    key_placeholder: "sk-...",
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    base_url: "https://api.deepseek.com",
+    model: "deepseek-chat",
+    key_placeholder: "sk-...",
+  },
+  {
+    id: "ollama",
+    label: "Ollama (local)",
+    base_url: "http://localhost:11434/v1",
+    model: "llama3.2",
+    key_placeholder: "(không cần)",
+  },
+];
+
+function detectPreset(baseUrl: string): string {
+  const found = LLM_PRESETS.find((p) => p.base_url === baseUrl);
+  return found?.id ?? "custom";
+}
+
 function SectionLLM({
   apiKey,
   baseUrl,
@@ -252,17 +308,40 @@ function SectionLLM({
   onBaseUrl: (v: string) => void;
   onModel: (v: string) => void;
 }) {
+  const presetId = detectPreset(baseUrl);
+  const preset = LLM_PRESETS.find((p) => p.id === presetId);
+
+  function onPresetChange(id: string) {
+    const p = LLM_PRESETS.find((x) => x.id === id);
+    if (!p) return; // "custom" — keep current values
+    onBaseUrl(p.base_url);
+    onModel(p.model);
+  }
+
   return (
     <Section
       title="LLM"
-      hint="OpenAI-compat endpoint. Gemini key (Google AI Studio) free tier, dán key vào ô api_key."
+      hint="OpenAI-compat endpoint. 9router (Yohomin) là default — multi-account Gemini rotation."
     >
+      <Field label="Preset">
+        <Select
+          value={presetId}
+          onChange={(e) => onPresetChange(e.target.value)}
+        >
+          {LLM_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+          <option value="custom">Tuỳ chỉnh</option>
+        </Select>
+      </Field>
       <Field label="API Key">
         <Input
           type="password"
           value={apiKey}
           onChange={(e) => onApiKey(e.target.value)}
-          placeholder="AIza..."
+          placeholder={preset?.key_placeholder ?? "API key"}
         />
       </Field>
       <Field label="Base URL">
@@ -270,7 +349,7 @@ function SectionLLM({
           type="text"
           value={baseUrl}
           onChange={(e) => onBaseUrl(e.target.value)}
-          placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
+          placeholder="https://..."
         />
       </Field>
       <Field label="Model">

@@ -28,6 +28,26 @@ from loguru import logger
 T = TypeVar("T", bound=BaseModel)
 
 
+# Cloudflare in front of sếp's 9router origin (yohomin.com) blocks the
+# default OpenAI SDK User-Agent ("OpenAI/Python ...") with a 403. Use a
+# benign browser UA so the request reaches the 9router CLI behind the
+# tunnel. Same workaround Baru-YTB uses — see baru_ytb/_ai_provider.py.
+_BENIGN_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+}
+
+# Cloudflare tunnel enforces ~100s per-request timeout. Long LLM calls
+# hit 524 with retryable:true regularly. Bump SDK timeout + retries so
+# the SDK's exponential backoff catches transient gateway 5xx without
+# the caller seeing them.
+_REQUEST_TIMEOUT_S = 180.0
+_MAX_RETRIES = 4
+
+
 class LLMService:
     """
     LLM (Large Language Model) service
@@ -108,11 +128,18 @@ class LLMService:
             or self._get_config_value("base_url")
         )
         
-        # Create client
-        client_kwargs = {"api_key": final_api_key}
+        # Create client. Always inject the benign UA + extended timeout —
+        # they're harmless for direct OpenAI/Qwen/Ollama, load-bearing for
+        # 9router behind Cloudflare.
+        client_kwargs = {
+            "api_key": final_api_key,
+            "default_headers": _BENIGN_HEADERS,
+            "timeout": _REQUEST_TIMEOUT_S,
+            "max_retries": _MAX_RETRIES,
+        }
         if final_base_url:
             client_kwargs["base_url"] = final_base_url
-        
+
         return AsyncOpenAI(**client_kwargs)
     
     async def __call__(
