@@ -179,12 +179,17 @@ export async function startFastApi(
   // build relies on python311._pth instead (embed Python ignores
   // PYTHONPATH in isolated mode).
   env.PYTHONPATH = cwd;
-  // Playwright: ``0`` tells the driver to look inside the package's
-  // site-packages/playwright/driver/ instead of the per-user
-  // ms-playwright cache. bundle-python.mjs installs Chromium there too,
-  // so the packaged app finds the browser without a first-launch
-  // download.
-  env.PLAYWRIGHT_BROWSERS_PATH = "0";
+  // Playwright: in packaged builds, bundle-python.mjs installs
+  // Chromium into site-packages/playwright/driver/ and we point the
+  // driver there with ``PLAYWRIGHT_BROWSERS_PATH=0``. In dev mode,
+  // ``playwright install chromium`` drops the browser in the user-wide
+  // %LOCALAPPDATA%/ms-playwright cache — overriding the env there
+  // makes the driver hunt inside site-packages where nothing is
+  // installed and fail with "Executable doesn't exist". Leave the env
+  // unset in dev so the default cache lookup works.
+  if (app.isPackaged) {
+    env.PLAYWRIGHT_BROWSERS_PATH = "0";
+  }
 
   const pathPrefix: string[] = [];
   if (app.isPackaged) {
