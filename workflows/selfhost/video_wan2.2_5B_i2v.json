@@ -76,11 +76,7 @@
       "fantasytalking_model": null,
       "multitalk_model": null,
       "fantasyportrait_model": null,
-      "rms_norm_function": "default",
-      "compile_args": [
-        "35",
-        0
-      ]
+      "rms_norm_function": "default"
     },
     "class_type": "WanVideoModelLoader",
     "_meta": {
