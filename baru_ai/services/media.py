@@ -19,10 +19,8 @@ Automatically detects output type based on ExecuteResult.
 
 import json
 import os
-from pathlib import Path
 from typing import Optional, Set
 
-import httpx
 from comfykit import ComfyKit
 from loguru import logger
 
@@ -61,30 +59,6 @@ def _workflow_input_tags(workflow_path: str) -> Set[str]:
             name = title[1:].split(".", 1)[0]
             tags.add(name)
     return tags
-
-
-async def _upload_image_to_comfyui(local_path: str, comfyui_url: str) -> str:
-    """POST a local image file to ComfyUI's /upload/image endpoint and
-    return the filename that workflows reference via ``$image.image!``.
-
-    ComfyUI's LoadImage node reads from its own ``input/`` folder by
-    filename — we can't pass an arbitrary disk path. The upload moves
-    the bytes server-side and returns ``{"name": "...", "subfolder":
-    "", "type": "input"}``. We hand the name straight back to the
-    pipeline so it can plug it into the workflow params.
-    """
-    url = comfyui_url.rstrip("/") + "/upload/image"
-    name = Path(local_path).name
-    with open(local_path, "rb") as f:
-        files = {"image": (name, f.read(), "image/png")}
-    data = {"type": "input", "overwrite": "true"}
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(url, files=files, data=data)
-        resp.raise_for_status()
-        payload = resp.json()
-    uploaded_name = payload.get("name") or name
-    logger.info(f"⬆️  Uploaded {local_path} → ComfyUI input/{uploaded_name}")
-    return uploaded_name
 
 
 class MediaService(ComfyBaseService):
@@ -342,11 +316,14 @@ class MediaService(ComfyBaseService):
         # the pipeline only hands us a text prompt, but the workflow has
         # a ``$image.image!`` tag (LoadImage node). Auto-generate the
         # scene image with the configured image backend (Imagen → Gemini
-        # fallback), upload to ComfyUI's input/ folder, then plug the
-        # uploaded filename into the workflow params so the LoadImage
-        # node picks it up. Without this the workflow fails validation
-        # — the user picked a "topic → motion video" mode in the UI and
-        # never sees an image upload field.
+        # fallback) and hand the LOCAL PATH to ComfyKit — its
+        # _handle_media_upload picks it up because LoadImage is in
+        # MEDIA_UPLOAD_NODE_TYPES, uploads to input/ folder, and rewrites
+        # the inputs.image widget to the server-side filename.
+        # (An earlier version of this did the upload manually and passed
+        # a bare filename string; ComfyKit silently no-ops on that case
+        # because it doesn't match the URL or local-file path branches,
+        # leaving the original hardcoded "image (658).png" in place.)
         if (
             media_type == "video"
             and workflow_info.get("source") != "runninghub"  # cloud workflows handle their own image gen
@@ -359,15 +336,12 @@ class MediaService(ComfyBaseService):
                     "image backend before handing off to ComfyUI."
                 )
                 image_result = await self._generate_scene_image(prompt)
-                comfy_url = (
-                    comfyui_url
-                    or self.config.get("comfyui_url")
-                    or "http://127.0.0.1:8188"
+                # Hand ComfyKit the on-disk path; it'll upload and rewrite.
+                workflow_params["image"] = image_result.url
+                logger.info(
+                    f"🖼  Scene image ready at {image_result.url} — "
+                    f"ComfyKit will upload to ComfyUI input/."
                 )
-                uploaded_name = await _upload_image_to_comfyui(
-                    image_result.url, comfy_url
-                )
-                workflow_params["image"] = uploaded_name
 
         logger.debug(f"Workflow parameters: {workflow_params}")
 
