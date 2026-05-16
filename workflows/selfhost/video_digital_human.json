@@ -49,14 +49,18 @@
     }
   },
   "245": {
-    "inputs": {},
+    "inputs": {
+      "value": 480
+    },
     "class_type": "INTConstant",
     "_meta": {
       "title": "$width.value"
     }
   },
   "246": {
-    "inputs": {},
+    "inputs": {
+      "value": 832
+    },
     "class_type": "INTConstant",
     "_meta": {
       "title": "$height.value"
@@ -177,7 +181,6 @@
   },
   "281": {
     "inputs": {
-      "mask": "lanczos",
       "image": [
         "284",
         0
@@ -189,7 +192,12 @@
       "height": [
         "246",
         0
-      ]
+      ],
+      "upscale_method": "lanczos",
+      "keep_proportion": "pad",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 16
     },
     "class_type": "ImageResizeKJv2",
     "_meta": {

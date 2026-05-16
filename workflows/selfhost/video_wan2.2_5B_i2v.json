@@ -277,7 +277,14 @@
       "image": [
         "58",
         0
-      ]
+      ],
+      "width": 480,
+      "height": 832,
+      "upscale_method": "lanczos",
+      "keep_proportion": "pad",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 16
     },
     "class_type": "ImageResizeKJv2",
     "_meta": {
