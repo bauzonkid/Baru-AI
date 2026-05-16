@@ -25,7 +25,6 @@ type ScriptMode = "ai" | "fixed";
 type GenMode =
   | "slideshow"
   | "custom_media"
-  | "t2v"
   | "i2v"
   | "digital_human";
 
@@ -51,13 +50,6 @@ const MODES: ModeMeta[] = [
     label: "Custom Media",
     hint: "Upload ảnh / video, AI viết script + voice, ghép thành video.",
     requiresComfy: false,
-  },
-  {
-    key: "t2v",
-    icon: "🎬",
-    label: "Text-to-Video",
-    hint: "Prompt text → AI motion video qua WAN 2.1 T2V. Cần ComfyUI + 14B model (FP8 cho 8GB VRAM).",
-    requiresComfy: true,
   },
   {
     key: "i2v",
@@ -900,13 +892,7 @@ type AdvancedConfig = {
   modelHint: string;
 };
 
-const ADVANCED_CONFIGS: Record<"t2v" | "i2v" | "digital_human", AdvancedConfig> = {
-  t2v: {
-    workflow: "selfhost/video_wan2.1_fusionx.json",
-    needsImage: false,
-    modelHint:
-      "Cần WanT2V_MasterModel (14B). 3070 8GB sửa node 37 weight_dtype → fp8_e4m3fn.",
-  },
+const ADVANCED_CONFIGS: Record<"i2v" | "digital_human", AdvancedConfig> = {
   i2v: {
     workflow: "selfhost/video_wan2.2_5B_i2v.json",
     needsImage: true,
@@ -934,7 +920,7 @@ function AdvancedTab({
 }) {
   const meta = MODES.find((m) => m.key === mode);
   const cfg =
-    mode === "t2v" || mode === "i2v" || mode === "digital_human"
+    mode === "i2v" || mode === "digital_human"
       ? ADVANCED_CONFIGS[mode]
       : null;
 
@@ -963,7 +949,7 @@ function AdvancedTab({
   // selection from i2v doesn't carry over to digital_human.
   useEffect(() => {
     setFiles([]);
-    if (mode === "t2v" || mode === "i2v" || mode === "digital_human") {
+    if (mode === "i2v" || mode === "digital_human") {
       probeComfy();
     }
   }, [mode]);
