@@ -17,9 +17,12 @@ Supports both image and video generation workflows.
 Automatically detects output type based on ExecuteResult.
 """
 
+import json
 import os
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Set
 
+import httpx
 from comfykit import ComfyKit
 from loguru import logger
 
@@ -27,6 +30,61 @@ from baru_ai.services.comfy_base_service import ComfyBaseService
 from baru_ai.services.gemini_image import generate_image_gemini, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from baru_ai.services.imagen_yohomin import generate_image_imagen, ImagenQuotaExceeded
 from baru_ai.models.media import MediaResult
+
+
+def _workflow_input_tags(workflow_path: str) -> Set[str]:
+    """Scan a workflow JSON for Pixelle $template title tags.
+
+    Returns the set of param names referenced (e.g. {"image", "audio",
+    "prompt"}). Used to detect when a video workflow needs a generated
+    image fed in before execution.
+
+    Robust to missing file / parse errors — returns empty set rather
+    than raising, so a bad workflow file degrades to "no auto image
+    generation" instead of breaking the whole pipeline.
+    """
+    try:
+        with open(workflow_path, "r", encoding="utf-8") as f:
+            wf = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(f"Could not scan workflow tags from {workflow_path}: {exc}")
+        return set()
+
+    tags: Set[str] = set()
+    nodes = wf.values() if isinstance(wf, dict) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        title = (node.get("_meta") or {}).get("title", "")
+        # Pixelle pattern: $<param>.<widget> or $<param>.<widget>!
+        if isinstance(title, str) and title.startswith("$") and "." in title:
+            name = title[1:].split(".", 1)[0]
+            tags.add(name)
+    return tags
+
+
+async def _upload_image_to_comfyui(local_path: str, comfyui_url: str) -> str:
+    """POST a local image file to ComfyUI's /upload/image endpoint and
+    return the filename that workflows reference via ``$image.image!``.
+
+    ComfyUI's LoadImage node reads from its own ``input/`` folder by
+    filename — we can't pass an arbitrary disk path. The upload moves
+    the bytes server-side and returns ``{"name": "...", "subfolder":
+    "", "type": "input"}``. We hand the name straight back to the
+    pipeline so it can plug it into the workflow params.
+    """
+    url = comfyui_url.rstrip("/") + "/upload/image"
+    name = Path(local_path).name
+    with open(local_path, "rb") as f:
+        files = {"image": (name, f.read(), "image/png")}
+    data = {"type": "input", "overwrite": "true"}
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(url, files=files, data=data)
+        resp.raise_for_status()
+        payload = resp.json()
+    uploaded_name = payload.get("name") or name
+    logger.info(f"⬆️  Uploaded {local_path} → ComfyUI input/{uploaded_name}")
+    return uploaded_name
 
 
 class MediaService(ComfyBaseService):
@@ -279,9 +337,40 @@ class MediaService(ComfyBaseService):
         
         # Add any additional parameters
         workflow_params.update(params)
-        
+
+        # 3. Two-step path for video workflows that need a source image:
+        # the pipeline only hands us a text prompt, but the workflow has
+        # a ``$image.image!`` tag (LoadImage node). Auto-generate the
+        # scene image with the configured image backend (Imagen → Gemini
+        # fallback), upload to ComfyUI's input/ folder, then plug the
+        # uploaded filename into the workflow params so the LoadImage
+        # node picks it up. Without this the workflow fails validation
+        # — the user picked a "topic → motion video" mode in the UI and
+        # never sees an image upload field.
+        if (
+            media_type == "video"
+            and workflow_info.get("source") != "runninghub"  # cloud workflows handle their own image gen
+            and "image" not in workflow_params
+        ):
+            needs = _workflow_input_tags(workflow_info["path"])
+            if "image" in needs:
+                logger.info(
+                    "🖼  Video workflow needs source image — generating via "
+                    "image backend before handing off to ComfyUI."
+                )
+                image_result = await self._generate_scene_image(prompt)
+                comfy_url = (
+                    comfyui_url
+                    or self.config.get("comfyui_url")
+                    or "http://127.0.0.1:8188"
+                )
+                uploaded_name = await _upload_image_to_comfyui(
+                    image_result.url, comfy_url
+                )
+                workflow_params["image"] = uploaded_name
+
         logger.debug(f"Workflow parameters: {workflow_params}")
-        
+
         # 4. Execute workflow using shared ComfyKit instance from core
         try:
             # Get shared ComfyKit instance (lazy initialization + config hot-reload)
@@ -342,3 +431,50 @@ class MediaService(ComfyBaseService):
         except Exception as e:
             logger.error(f"Media generation error: {e}")
             raise
+
+    async def _generate_scene_image(self, prompt: str) -> MediaResult:
+        """Generate a single scene image using the configured image backend.
+
+        Mirrors the image-mode dispatch in ``__call__`` (imagen → Gemini
+        fallback on quota) but always returns an image and never routes
+        to ComfyUI. Used by the video-workflow two-step path to feed
+        a $image.image! input before kicking off motion generation.
+        """
+        imagen_cfg = self.config.get("imagen", {}) or {}
+        gemini_cfg = self.config.get("gemini", {}) or {}
+        license_key = imagen_cfg.get("license_key") or os.environ.get(
+            "BARU_LICENSE_KEY", ""
+        )
+        gemini_key = gemini_cfg.get("api_key") or os.environ.get(
+            "GEMINI_API_KEY", ""
+        )
+
+        # Try Imagen first when license configured. Quota exhaustion →
+        # fall back to Gemini direct (same pattern as image-mode path).
+        if license_key:
+            try:
+                return await generate_image_imagen(
+                    prompt=prompt,
+                    license_key=license_key,
+                    base_url=imagen_cfg.get("base_url") or "https://yohomin.com",
+                    aspect_ratio=imagen_cfg.get("aspect_ratio") or "9:16",
+                )
+            except ImagenQuotaExceeded as exc:
+                if not gemini_key:
+                    raise
+                logger.warning(
+                    f"Imagen quota exhausted in scene image gen: {exc}. "
+                    f"Falling back to Gemini direct."
+                )
+
+        if not gemini_key:
+            raise RuntimeError(
+                "Neither Imagen license_key nor Gemini api_key configured — "
+                "video workflow can't auto-generate scene image. Set one in "
+                "Settings → Image gen."
+            )
+        return await generate_image_gemini(
+            prompt=prompt,
+            api_key=gemini_key,
+            model=gemini_cfg.get("model") or GEMINI_DEFAULT_MODEL,
+        )

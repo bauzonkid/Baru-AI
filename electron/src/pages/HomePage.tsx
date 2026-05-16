@@ -54,8 +54,8 @@ const MODES: ModeMeta[] = [
   {
     key: "i2v",
     icon: "🎞️",
-    label: "Image-to-Video",
-    hint: "Ảnh tĩnh + prompt → motion video qua WAN 2.2 5B. Cần ComfyUI + WanVideoWrapper.",
+    label: "Animated Slideshow",
+    hint: "Như Slideshow nhưng động: text → AI sinh ảnh per scene → WAN 2.2 5B animate → ghép. Cần ComfyUI.",
     requiresComfy: true,
   },
   {
@@ -895,15 +895,15 @@ type AdvancedConfig = {
 const ADVANCED_CONFIGS: Record<"i2v" | "digital_human", AdvancedConfig> = {
   i2v: {
     workflow: "selfhost/video_wan2.2_5B_i2v.json",
-    needsImage: true,
+    needsImage: false,
     modelHint:
-      "Cần wan2.2_ti2v_5B_fp16.safetensors (~10GB) + umt5-xxl-enc-bf16 + Wan2_2_VAE. 5B fit 8GB sát nút.",
+      "Cần wan2.2_ti2v_5B_fp16.safetensors (~10GB) + umt5-xxl-enc-bf16 + Wan2_2_VAE. Pipeline tự sinh ảnh per scene qua Imagen rồi animate qua WAN 2.2 5B.",
   },
   digital_human: {
     workflow: "selfhost/video_digital_human.json",
     needsImage: true,
     modelHint:
-      "Cần wan2.1-i2v-14b-480p-Q8_0.gguf + InfiniteTalk-Single_Q8.gguf + Wan2_1_VAE_bf16. ~16GB models tổng.",
+      "Cần wan2.1-i2v-14b-480p-Q8_0.gguf + InfiniteTalk-Single_Q8.gguf + Wan2_1_VAE_bf16. ~16GB models tổng. Sếp upload ảnh nhân vật cố định cho toàn video.",
   },
 };
 
